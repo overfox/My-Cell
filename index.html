@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Country Flag</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #38bdf8;
+    --accent-2: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(circle at top, #1e293b, var(--bg));
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 32px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  h1 {
+    margin: 0 0 24px;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .flag-box {
+    background: #0b1220;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    height: 230px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .flag-box img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  }
+  .placeholder {
+    color: var(--muted);
+    font-size: 1rem;
+    padding: 0 24px;
+  }
+  .name {
+    min-height: 1.8rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    letter-spacing: 0.3px;
+  }
+  .name.hidden-name {
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 1.05rem;
+    font-style: italic;
+  }
+  .buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    flex: 1 1 140px;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.2s ease;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  #flagBtn { background: var(--accent); color: #06283d; }
+  #revealBtn { background: var(--accent-2); color: #3a2400; }
+  .count {
+    margin-top: 18px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌍 Random Country Flag</h1>
+    <div class="flag-box">
+      <img id="flag" alt="" style="display:none;">
+      <div class="placeholder" id="placeholder">Press <b>Flag</b> to show a random country's flag</div>
+    </div>
+    <div class="name hidden-name" id="name">— press Reveal to see the country —</div>
+    <div class="buttons">
+      <button id="flagBtn">Flag</button>
+      <button id="revealBtn" disabled>Reveal</button>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+<script>
+const countries = [
+  {n:"Afghanistan",c:"af"},{n:"Albania",c:"al"},{n:"Algeria",c:"dz"},{n:"Andorra",c:"ad"},
+  {n:"Angola",c:"ao"},{n:"Antigua and Barbuda",c:"ag"},{n:"Argentina",c:"ar"},{n:"Armenia",c:"am"},
+  {n:"Australia",c:"au"},{n:"Austria",c:"at"},{n:"Azerbaijan",c:"az"},{n:"Bahamas",c:"bs"},
+  {n:"Bahrain",c:"bh"},{n:"Bangladesh",c:"bd"},{n:"Barbados",c:"bb"},{n:"Belarus",c:"by"},
+  {n:"Belgium",c:"be"},{n:"Belize",c:"bz"},{n:"Benin",c:"bj"},{n:"Bhutan",c:"bt"},
+  {n:"Bolivia",c:"bo"},{n:"Bosnia and Herzegovina",c:"ba"},{n:"Botswana",c:"bw"},{n:"Brazil",c:"br"},
+  {n:"Brunei",c:"bn"},{n:"Bulgaria",c:"bg"},{n:"Burkina Faso",c:"bf"},{n:"Burundi",c:"bi"},
+  {n:"Cabo Verde",c:"cv"},{n:"Cambodia",c:"kh"},{n:"Cameroon",c:"cm"},{n:"Canada",c:"ca"},
+  {n:"Central African Republic",c:"cf"},{n:"Chad",c:"td"},{n:"Chile",c:"cl"},{n:"China",c:"cn"},
+  {n:"Colombia",c:"co"},{n:"Comoros",c:"km"},{n:"Congo (Brazzaville)",c:"cg"},{n:"Congo (Kinshasa)",c:"cd"},
+  {n:"Costa Rica",c:"cr"},{n:"Côte d'Ivoire",c:"ci"},{n:"Croatia",c:"hr"},{n:"Cuba",c:"cu"},
+  {n:"Cyprus",c:"cy"},{n:"Czechia",c:"cz"},{n:"Denmark",c:"dk"},{n:"Djibouti",c:"dj"},
+  {n:"Dominica",c:"dm"},{n:"Dominican Republic",c:"do"},{n:"Ecuador",c:"ec"},{n:"Egypt",c:"eg"},
+  {n:"El Salvador",c:"sv"},{n:"Equatorial Guinea",c:"gq"},{n:"Eritrea",c:"er"},{n:"Estonia",c:"ee"},
+  {n:"Eswatini",c:"sz"},{n:"Ethiopia",c:"et"},{n:"Fiji",c:"fj"},{n:"Finland",c:"fi"},
+  {n:"France",c:"fr"},{n:"Gabon",c:"ga"},{n:"Gambia",c:"gm"},{n:"Georgia",c:"ge"},
+  {n:"Germany",c:"de"},{n:"Ghana",c:"gh"},{n:"Greece",c:"gr"},{n:"Grenada",c:"gd"},
+  {n:"Guatemala",c:"gt"},{n:"Guinea",c:"gn"},{n:"Guinea-Bissau",c:"gw"},{n:"Guyana",c:"gy"},
+  {n:"Haiti",c:"ht"},{n:"Honduras",c:"hn"},{n:"Hungary",c:"hu"},{n:"Iceland",c:"is"},
+  {n:"India",c:"in"},{n:"Indonesia",c:"id"},{n:"Iran",c:"ir"},{n:"Iraq",c:"iq"},
+  {n:"Ireland",c:"ie"},{n:"Israel",c:"il"},{n:"Italy",c:"it"},{n:"Jamaica",c:"jm"},
+  {n:"Japan",c:"jp"},{n:"Jordan",c:"jo"},{n:"Kazakhstan",c:"kz"},{n:"Kenya",c:"ke"},
+  {n:"Kiribati",c:"ki"},{n:"Kuwait",c:"kw"},{n:"Kyrgyzstan",c:"kg"},{n:"Laos",c:"la"},
+  {n:"Latvia",c:"lv"},{n:"Lebanon",c:"lb"},{n:"Lesotho",c:"ls"},{n:"Liberia",c:"lr"},
+  {n:"Libya",c:"ly"},{n:"Liechtenstein",c:"li"},{n:"Lithuania",c:"lt"},{n:"Luxembourg",c:"lu"},
+  {n:"Madagascar",c:"mg"},{n:"Malawi",c:"mw"},{n:"Malaysia",c:"my"},{n:"Maldives",c:"mv"},
+  {n:"Mali",c:"ml"},{n:"Malta",c:"mt"},{n:"Marshall Islands",c:"mh"},{n:"Mauritania",c:"mr"},
+  {n:"Mauritius",c:"mu"},{n:"Mexico",c:"mx"},{n:"Micronesia",c:"fm"},{n:"Moldova",c:"md"},
+  {n:"Monaco",c:"mc"},{n:"Mongolia",c:"mn"},{n:"Montenegro",c:"me"},{n:"Morocco",c:"ma"},
+  {n:"Mozambique",c:"mz"},{n:"Myanmar",c:"mm"},{n:"Namibia",c:"na"},{n:"Nauru",c:"nr"},
+  {n:"Nepal",c:"np"},{n:"Netherlands",c:"nl"},{n:"New Zealand",c:"nz"},{n:"Nicaragua",c:"ni"},
+  {n:"Niger",c:"ne"},{n:"Nigeria",c:"ng"},{n:"North Korea",c:"kp"},{n:"North Macedonia",c:"mk"},
+  {n:"Norway",c:"no"},{n:"Oman",c:"om"},{n:"Pakistan",c:"pk"},{n:"Palau",c:"pw"},
+  {n:"Palestine",c:"ps"},{n:"Panama",c:"pa"},{n:"Papua New Guinea",c:"pg"},{n:"Paraguay",c:"py"},
+  {n:"Peru",c:"pe"},{n:"Philippines",c:"ph"},{n:"Poland",c:"pl"},{n:"Portugal",c:"pt"},
+  {n:"Qatar",c:"qa"},{n:"Romania",c:"ro"},{n:"Russia",c:"ru"},{n:"Rwanda",c:"rw"},
+  {n:"Saint Kitts and Nevis",c:"kn"},{n:"Saint Lucia",c:"lc"},{n:"Saint Vincent and the Grenadines",c:"vc"},
+  {n:"Samoa",c:"ws"},{n:"San Marino",c:"sm"},{n:"Sao Tome and Principe",c:"st"},{n:"Saudi Arabia",c:"sa"},
+  {n:"Senegal",c:"sn"},{n:"Serbia",c:"rs"},{n:"Seychelles",c:"sc"},{n:"Sierra Leone",c:"sl"},
+  {n:"Singapore",c:"sg"},{n:"Slovakia",c:"sk"},{n:"Slovenia",c:"si"},{n:"Solomon Islands",c:"sb"},
+  {n:"Somalia",c:"so"},{n:"South Africa",c:"za"},{n:"South Korea",c:"kr"},{n:"South Sudan",c:"ss"},
+  {n:"Spain",c:"es"},{n:"Sri Lanka",c:"lk"},{n:"Sudan",c:"sd"},{n:"Suriname",c:"sr"},
+  {n:"Sweden",c:"se"},{n:"Switzerland",c:"ch"},{n:"Syria",c:"sy"},{n:"Tajikistan",c:"tj"},
+  {n:"Tanzania",c:"tz"},{n:"Thailand",c:"th"},{n:"Timor-Leste",c:"tl"},{n:"Togo",c:"tg"},
+  {n:"Tonga",c:"to"},{n:"Trinidad and Tobago",c:"tt"},{n:"Tunisia",c:"tn"},{n:"Turkey",c:"tr"},
+  {n:"Turkmenistan",c:"tm"},{n:"Tuvalu",c:"tv"},{n:"Uganda",c:"ug"},{n:"Ukraine",c:"ua"},
+  {n:"United Arab Emirates",c:"ae"},{n:"United Kingdom",c:"gb"},{n:"United States",c:"us"},{n:"Uruguay",c:"uy"},
+  {n:"Uzbekistan",c:"uz"},{n:"Vanuatu",c:"vu"},{n:"Vatican City",c:"va"},{n:"Venezuela",c:"ve"},
+  {n:"Vietnam",c:"vn"},{n:"Yemen",c:"ye"},{n:"Zambia",c:"zm"},{n:"Zimbabwe",c:"zw"}
+];
+
+const flagImg = document.getElementById("flag");
+const placeholder = document.getElementById("placeholder");
+const nameEl = document.getElementById("name");
+const flagBtn = document.getElementById("flagBtn");
+const revealBtn = document.getElementById("revealBtn");
+const countEl = document.getElementById("count");
+
+let current = null;
+
+countEl.textContent = countries.length + " countries in the deck";
+
+flagBtn.addEventListener("click", () => {
+  current = countries[Math.floor(Math.random() * countries.length)];
+  flagImg.src = "https://flagcdn.com/w640/" + current.c + ".png";
+  flagImg.alt = "Flag of a country";
+  flagImg.style.display = "block";
+  placeholder.style.display = "none";
+
+  // Hide the name again every time a new flag is drawn
+  nameEl.textContent = "— press Reveal to see the country —";
+  nameEl.classList.add("hidden-name");
+  revealBtn.disabled = false;
+});
+
+revealBtn.addEventListener("click", () => {
+  if (!current) return;
+  nameEl.textContent = current.n;
+  nameEl.classList.remove("hidden-name");
+});
+</script>
+</body>
+</html>
