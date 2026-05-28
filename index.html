@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Random Country Flag</title>
+<title>Limo's World</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -28,33 +28,68 @@
   .card {
     background: var(--card);
     border-radius: 20px;
-    padding: 32px;
+    padding: 28px 32px 32px;
     width: 100%;
     max-width: 480px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     text-align: center;
   }
   h1 {
-    margin: 0 0 24px;
-    font-size: 1.6rem;
-    font-weight: 700;
+    margin: 0 0 18px;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
   }
-  .flag-box {
+  .tabs {
+    display: flex;
+    gap: 8px;
+    background: #0b1220;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 5px;
+    margin-bottom: 22px;
+  }
+  .tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    padding: 10px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: #06283d;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .stage {
     background: #0b1220;
     border: 1px solid #334155;
     border-radius: 14px;
-    height: 230px;
+    height: 240px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     margin-bottom: 18px;
   }
-  .flag-box img {
+  .stage img {
     max-width: 100%;
     max-height: 100%;
     border-radius: 6px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  }
+  #flagImg { box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+  /* mapsicon shapes are white silhouettes on transparent — tint them to the accent colour */
+  #shapeImg {
+    padding: 14px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6))
+            brightness(0) saturate(100%) invert(72%) sepia(58%)
+            saturate(700%) hue-rotate(170deg) brightness(102%) contrast(98%);
   }
   .placeholder {
     color: var(--muted);
@@ -65,7 +100,7 @@
     min-height: 1.8rem;
     font-size: 1.4rem;
     font-weight: 700;
-    margin-bottom: 24px;
+    margin-bottom: 22px;
     letter-spacing: 0.3px;
   }
   .name.hidden-name {
@@ -80,7 +115,7 @@
     justify-content: center;
     flex-wrap: wrap;
   }
-  button {
+  button.action {
     flex: 1 1 140px;
     border: none;
     border-radius: 12px;
@@ -90,10 +125,10 @@
     cursor: pointer;
     transition: transform 0.08s ease, opacity 0.2s ease;
   }
-  button:active { transform: scale(0.97); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  #flagBtn { background: var(--accent); color: #06283d; }
-  #revealBtn { background: var(--accent-2); color: #3a2400; }
+  button.action:active { transform: scale(0.97); }
+  button.action:disabled { opacity: 0.45; cursor: not-allowed; }
+  .draw-btn { background: var(--accent); color: #06283d; }
+  .reveal-btn { background: var(--accent-2); color: #3a2400; }
   .count {
     margin-top: 18px;
     font-size: 0.8rem;
@@ -103,16 +138,39 @@
 </head>
 <body>
   <div class="card">
-    <h1>🌍 Random Country Flag</h1>
-    <div class="flag-box">
-      <img id="flag" alt="" style="display:none;">
-      <div class="placeholder" id="placeholder">Press <b>Flag</b> to show a random country's flag</div>
+    <h1>🌍 Limo's World</h1>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="flag">Flags</button>
+      <button class="tab" data-tab="shape">Map Shapes</button>
     </div>
-    <div class="name hidden-name" id="name">— press Reveal to see the country —</div>
-    <div class="buttons">
-      <button id="flagBtn">Flag</button>
-      <button id="revealBtn" disabled>Reveal</button>
+
+    <!-- FLAGS TAB -->
+    <div class="panel active" id="panel-flag">
+      <div class="stage">
+        <img id="flagImg" alt="" style="display:none;">
+        <div class="placeholder" id="flagPlaceholder">Press <b>Flag</b> for a random country's flag</div>
+      </div>
+      <div class="name hidden-name" id="flagName">— press Reveal to see the country —</div>
+      <div class="buttons">
+        <button class="action draw-btn" id="flagBtn">Flag</button>
+        <button class="action reveal-btn" id="flagReveal" disabled>Reveal</button>
+      </div>
     </div>
+
+    <!-- MAP SHAPES TAB -->
+    <div class="panel" id="panel-shape">
+      <div class="stage">
+        <img id="shapeImg" alt="" style="display:none;">
+        <div class="placeholder" id="shapePlaceholder">Press <b>Shape</b> for a random country's outline on the map</div>
+      </div>
+      <div class="name hidden-name" id="shapeName">— press Reveal to see the country —</div>
+      <div class="buttons">
+        <button class="action draw-btn" id="shapeBtn">Shape</button>
+        <button class="action reveal-btn" id="shapeReveal" disabled>Reveal</button>
+      </div>
+    </div>
+
     <div class="count" id="count"></div>
   </div>
 
@@ -169,34 +227,65 @@ const countries = [
   {n:"Vietnam",c:"vn"},{n:"Yemen",c:"ye"},{n:"Zambia",c:"zm"},{n:"Zimbabwe",c:"zw"}
 ];
 
-const flagImg = document.getElementById("flag");
-const placeholder = document.getElementById("placeholder");
-const nameEl = document.getElementById("name");
-const flagBtn = document.getElementById("flagBtn");
-const revealBtn = document.getElementById("revealBtn");
-const countEl = document.getElementById("count");
+const HIDDEN_TEXT = "— press Reveal to see the country —";
 
-let current = null;
+document.getElementById("count").textContent = countries.length + " countries in the deck";
 
-countEl.textContent = countries.length + " countries in the deck";
-
-flagBtn.addEventListener("click", () => {
-  current = countries[Math.floor(Math.random() * countries.length)];
-  flagImg.src = "https://flagcdn.com/w640/" + current.c + ".png";
-  flagImg.alt = "Flag of a country";
-  flagImg.style.display = "block";
-  placeholder.style.display = "none";
-
-  // Hide the name again every time a new flag is drawn
-  nameEl.textContent = "— press Reveal to see the country —";
-  nameEl.classList.add("hidden-name");
-  revealBtn.disabled = false;
+// ---- Tab switching ----
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+  });
 });
 
-revealBtn.addEventListener("click", () => {
-  if (!current) return;
-  nameEl.textContent = current.n;
-  nameEl.classList.remove("hidden-name");
+function randomCountry() {
+  return countries[Math.floor(Math.random() * countries.length)];
+}
+
+// ---- Generic wiring for a draw/reveal panel ----
+function setupPanel({ drawId, revealId, imgId, placeholderId, nameId, srcFor }) {
+  const drawBtn = document.getElementById(drawId);
+  const revealBtn = document.getElementById(revealId);
+  const img = document.getElementById(imgId);
+  const placeholder = document.getElementById(placeholderId);
+  const nameEl = document.getElementById(nameId);
+  let current = null;
+
+  drawBtn.addEventListener("click", () => {
+    current = randomCountry();
+    img.src = srcFor(current);
+    img.alt = "";
+    img.style.display = "block";
+    placeholder.style.display = "none";
+
+    // Re-hide the name every time a new country is drawn
+    nameEl.textContent = HIDDEN_TEXT;
+    nameEl.classList.add("hidden-name");
+    revealBtn.disabled = false;
+  });
+
+  revealBtn.addEventListener("click", () => {
+    if (!current) return;
+    nameEl.textContent = current.n;
+    nameEl.classList.remove("hidden-name");
+  });
+}
+
+// Flags: flag images from flagcdn
+setupPanel({
+  drawId: "flagBtn", revealId: "flagReveal", imgId: "flagImg",
+  placeholderId: "flagPlaceholder", nameId: "flagName",
+  srcFor: country => "https://flagcdn.com/w640/" + country.c + ".png"
+});
+
+// Map shapes: country outline silhouettes from the mapsicon dataset (via jsDelivr)
+setupPanel({
+  drawId: "shapeBtn", revealId: "shapeReveal", imgId: "shapeImg",
+  placeholderId: "shapePlaceholder", nameId: "shapeName",
+  srcFor: country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png"
 });
 </script>
 </body>
