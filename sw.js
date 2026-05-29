@@ -1,5 +1,5 @@
 /* Limo's World service worker — lets the app be installed and work offline. */
-const CACHE = "limos-world-v1";
+const CACHE = "limos-world-v2";
 const SHELL = [
   "./",
   "./index.html",
