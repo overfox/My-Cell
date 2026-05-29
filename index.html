@@ -2,8 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Limo's World</title>
+<!-- Installable app (PWA) -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#9b5de5">
+<link rel="icon" href="./icon-192.png">
+<!-- iPhone / iPad "Add to Home Screen" -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Limo's World">
+<link rel="apple-touch-icon" href="./icon-180.png">
 <style>
   :root {
     --cream: #fffdf5;
@@ -16,128 +26,138 @@
     --green: #43c463;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
   body {
     margin: 0;
-    min-height: 100vh;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
     font-family: "Comic Sans MS", "Chalkboard SE", "Comic Neue", "Baloo 2", system-ui, sans-serif;
     background:
-      radial-gradient(circle at 15% 15%, #fff3a8 0 70px, transparent 71px),
+      radial-gradient(circle at 15% 12%, #fff3a8 0 60px, transparent 61px),
       linear-gradient(160deg, #8ddcff 0%, #b8a4ff 55%, #ffb3e6 100%);
-    background-attachment: fixed;
     color: var(--ink);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 8px;
   }
   .card {
     background: var(--cream);
-    border: 6px solid #fff;
-    border-radius: 30px;
-    padding: 18px 22px 24px;
-    width: 100%;
-    max-width: 520px;
-    box-shadow: 0 18px 0 rgba(0,0,0,0.12), 0 24px 50px rgba(0,0,0,0.25);
+    border: 5px solid #fff;
+    border-radius: 24px;
+    padding: 12px 14px;
+    width: min(500px, 100%);
+    height: 100%;
+    max-height: 760px;
+    box-shadow: 0 12px 0 rgba(0,0,0,0.12), 0 20px 40px rgba(0,0,0,0.25);
     text-align: center;
-    position: relative;
+    display: flex; flex-direction: column;
+    overflow: hidden;
   }
   h1 {
-    margin: 4px 0 12px;
-    font-size: 2.1rem;
+    margin: 0 0 8px;
+    font-size: clamp(1.3rem, 5.5vw, 1.8rem);
     font-weight: 800;
     color: var(--purple);
-    text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(155,93,229,0.25);
+    text-shadow: 2px 2px 0 #fff, 3px 3px 0 rgba(155,93,229,0.25);
     animation: wiggle 3s ease-in-out infinite;
+    flex: 0 0 auto;
   }
   @keyframes wiggle { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
 
-  .scoreboard {
-    display: flex; gap: 8px; justify-content: center; margin-bottom: 14px;
-  }
+  .scoreboard { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; flex: 0 0 auto; }
   .chip {
-    background: #fff; border: 3px solid var(--ink); border-radius: 14px;
-    padding: 6px 10px; font-weight: 800; font-size: 0.95rem;
-    box-shadow: 0 3px 0 var(--ink); min-width: 78px;
+    background: #fff; border: 3px solid var(--ink); border-radius: 12px;
+    padding: 3px 8px; font-weight: 800; font-size: 0.72rem; box-shadow: 0 3px 0 var(--ink); min-width: 70px;
   }
-  .chip b { display: block; font-size: 1.2rem; }
+  .chip b { display: block; font-size: 1.05rem; }
 
-  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 5px; margin-bottom: 10px; flex: 0 0 auto; }
   .tab {
-    flex: 1; border: 4px solid var(--ink); background: #fff; color: var(--ink);
-    padding: 11px 2px; font-family: inherit; font-size: 0.92rem; font-weight: 800;
-    border-radius: 16px; cursor: pointer; box-shadow: 0 5px 0 var(--ink);
-    transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s;
+    flex: 1; border: 3px solid var(--ink); background: #fff; color: var(--ink);
+    padding: 6px 1px; font-family: inherit; font-weight: 800; border-radius: 13px; cursor: pointer;
+    box-shadow: 0 4px 0 var(--ink); display: flex; flex-direction: column; align-items: center; gap: 1px;
+    line-height: 1; transition: transform 0.08s, box-shadow 0.08s, background 0.15s;
   }
-  .tab:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .tab .ico { font-size: 1.15rem; }
+  .tab .lbl { font-size: 0.58rem; }
+  .tab:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
   .tab.active { background: var(--yellow); }
 
-  .panel { display: none; }
-  .panel.active { display: block; animation: pop 0.25s ease; }
-  @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .panels { flex: 1 1 auto; min-height: 0; position: relative; }
+  .panel { display: none; height: 100%; }
+  .panel.active { display: flex; flex-direction: column; height: 100%; animation: pop 0.25s ease; }
+  @keyframes pop { 0% { transform: scale(0.97); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
   .stage {
-    background: #fff; border: 5px dashed var(--blue); border-radius: 22px;
-    height: 240px; display: flex; align-items: center; justify-content: center;
-    overflow: hidden; margin-bottom: 14px; padding: 10px;
+    flex: 1 1 auto; min-height: 0;
+    background: #fff; border: 4px dashed var(--blue); border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; margin-bottom: 8px;
   }
   .stage img { max-width: 100%; max-height: 100%; border-radius: 8px; }
-  #flagImg, #quizImg.as-flag, .combo-flag { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
-  /* mapsicon shapes are white silhouettes — tint them bright purple */
+  #flagImg, #quizImg.as-flag, .combo-flag { box-shadow: 0 5px 14px rgba(0,0,0,0.25); }
   #shapeImg, .combo-shape, #quizImg.as-shape {
-    padding: 8px;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25))
-            brightness(0) saturate(100%) invert(38%) sepia(89%)
-            saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%);
+    padding: 6px;
+    filter: drop-shadow(0 3px 7px rgba(0,0,0,0.25))
+            brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%);
   }
-  .stage-both { padding: 12px; }
-  .combo { display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; height: 100%; }
+  .combo { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 100%; }
   .combo img { max-width: 48%; max-height: 100%; border-radius: 8px; }
-  @media (max-width: 400px) {
-    .combo { flex-direction: column; gap: 8px; }
-    .combo img { max-width: 78%; max-height: 48%; }
-  }
 
-  .placeholder { color: #8a8d9f; font-size: 1.12rem; font-weight: 700; padding: 0 18px; line-height: 1.4; }
-  .name { min-height: 2.3rem; font-size: 1.8rem; font-weight: 800; margin-bottom: 6px; color: var(--teal); }
+  .placeholder { color: #8a8d9f; font-size: 1rem; font-weight: 700; padding: 0 14px; line-height: 1.35; }
+  .name { font-size: clamp(1.2rem, 6vw, 1.7rem); font-weight: 800; color: var(--teal); flex: 0 0 auto; margin-bottom: 2px; }
   .name.revealed { animation: boing 0.5s ease; }
   @keyframes boing { 0% { transform: scale(0.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
-  .name.hidden-name { color: #b7bac7; font-weight: 700; font-size: 1.15rem; }
+  .name.hidden-name { color: #b7bac7; font-weight: 700; font-size: 1.05rem; }
+  .fact { font-size: 0.9rem; font-weight: 700; color: var(--purple); margin: 2px auto 8px; max-width: 440px; line-height: 1.3; flex: 0 0 auto; }
 
-  .fact {
-    min-height: 1.2rem; font-size: 1.02rem; font-weight: 700; color: var(--purple);
-    margin: 0 auto 14px; max-width: 440px; line-height: 1.35;
-  }
-
-  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .buttons { display: flex; gap: 10px; justify-content: center; flex: 0 0 auto; }
   button.action {
-    flex: 1 1 150px; border: 4px solid var(--ink); border-radius: 20px; padding: 15px 12px;
-    font-family: inherit; font-size: 1.2rem; font-weight: 800; color: var(--ink);
-    cursor: pointer; box-shadow: 0 6px 0 var(--ink);
-    transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s;
+    flex: 1 1 50%; border: 4px solid var(--ink); border-radius: 16px; padding: 12px 8px;
+    font-family: inherit; font-size: 1.05rem; font-weight: 800; color: var(--ink);
+    cursor: pointer; box-shadow: 0 5px 0 var(--ink);
+    transition: transform 0.08s, box-shadow 0.08s, opacity 0.2s;
   }
-  button.action:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
-  button.action:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 6px 0 var(--ink); transform: none; }
+  button.action:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  button.action:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 5px 0 var(--ink); transform: none; }
   .draw-btn { background: var(--yellow); }
   .reveal-btn { background: var(--red); color: #fff; }
 
   /* Quiz */
-  .question { font-size: 1.25rem; font-weight: 800; margin: 2px 0 12px; color: var(--ink); }
-  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .quiz-opt {
-    border: 4px solid var(--ink); background: #fff; color: var(--ink);
-    border-radius: 16px; padding: 14px 8px; font-family: inherit; font-size: 1rem;
-    font-weight: 800; cursor: pointer; box-shadow: 0 5px 0 var(--ink); min-height: 60px;
-    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  .difficulty { display: flex; gap: 5px; justify-content: center; margin-bottom: 8px; flex: 0 0 auto; }
+  .diff-btn {
+    border: 3px solid var(--ink); background: #fff; color: var(--ink); border-radius: 11px;
+    padding: 5px 8px; font-family: inherit; font-weight: 800; font-size: 0.78rem; cursor: pointer; box-shadow: 0 3px 0 var(--ink);
   }
-  .quiz-opt:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .diff-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+  .diff-btn.active { background: var(--blue); color: #fff; }
+  .question { font-size: 1rem; font-weight: 800; margin: 0 0 6px; color: var(--ink); flex: 0 0 auto; }
+  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; flex: 0 0 auto; }
+  .quiz-opt {
+    border: 3px solid var(--ink); background: #fff; color: var(--ink); border-radius: 13px;
+    padding: 10px 6px; font-family: inherit; font-size: 0.92rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 4px 0 var(--ink); min-height: 50px; transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .quiz-opt:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
   .quiz-opt.correct { background: var(--green); color: #fff; }
-  .quiz-opt.wrong   { background: var(--red); color: #fff; }
-  .quiz-opt:disabled { cursor: default; }
+  .quiz-opt.wrong { background: var(--red); color: #fff; }
 
-  .count { margin-top: 14px; font-size: 0.95rem; font-weight: 700; color: var(--purple); }
+  /* Album */
+  .album-head { font-size: 0.95rem; font-weight: 800; color: var(--purple); margin-bottom: 6px; flex: 0 0 auto; }
+  .album-grid {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px;
+    padding: 6px; background: #fff; border: 4px dashed var(--blue); border-radius: 16px; margin-bottom: 8px;
+  }
+  .sticker {
+    aspect-ratio: 1 / 1; border-radius: 10px; border: 2px solid #e3e3ef; background: #f4f4fa;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 3px;
+  }
+  .sticker.got { border-color: var(--green); background: #eafff0; }
+  .sticker img { width: 100%; max-height: 60%; object-fit: contain; border-radius: 3px; }
+  .sticker .nm { font-size: 0.5rem; font-weight: 800; line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .sticker .lock { font-size: 1.4rem; }
 
   .confetti { position: fixed; top: -40px; font-size: 1.6rem; pointer-events: none; z-index: 999; animation: fall linear forwards; }
-  @keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; } }
+  @keyframes fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; } }
 </style>
 </head>
 <body>
@@ -151,72 +171,87 @@
     </div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="flag">🚩 Flags</button>
-      <button class="tab" data-tab="shape">🗺️ Shapes</button>
-      <button class="tab" data-tab="both">✨ Both</button>
-      <button class="tab" data-tab="quiz">🧠 Quiz</button>
+      <button class="tab active" data-tab="flag"><span class="ico">🚩</span><span class="lbl">Flags</span></button>
+      <button class="tab" data-tab="shape"><span class="ico">🗺️</span><span class="lbl">Shapes</span></button>
+      <button class="tab" data-tab="both"><span class="ico">✨</span><span class="lbl">Both</span></button>
+      <button class="tab" data-tab="quiz"><span class="ico">🧠</span><span class="lbl">Quiz</span></button>
+      <button class="tab" data-tab="album"><span class="ico">📔</span><span class="lbl">Album</span></button>
     </div>
 
-    <!-- FLAGS TAB -->
-    <div class="panel active" id="panel-flag">
-      <div class="stage">
-        <img id="flagImg" alt="" style="display:none;">
-        <div class="placeholder" id="flagPlaceholder">Tap the big button to see a mystery flag! 🚩</div>
-      </div>
-      <div class="name hidden-name" id="flagName">🙈 Tap Who is it?</div>
-      <div class="fact" id="flagFact"></div>
-      <div class="buttons">
-        <button class="action draw-btn" id="flagBtn">🎲 New Flag!</button>
-        <button class="action reveal-btn" id="flagReveal" disabled>🙈 Who is it?</button>
-      </div>
-    </div>
-
-    <!-- MAP SHAPES TAB -->
-    <div class="panel" id="panel-shape">
-      <div class="stage">
-        <img id="shapeImg" alt="" style="display:none;">
-        <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country shape! 🗺️</div>
-      </div>
-      <div class="name hidden-name" id="shapeName">🙈 Tap Who is it?</div>
-      <div class="fact" id="shapeFact"></div>
-      <div class="buttons">
-        <button class="action draw-btn" id="shapeBtn">🎲 New Shape!</button>
-        <button class="action reveal-btn" id="shapeReveal" disabled>🙈 Who is it?</button>
-      </div>
-    </div>
-
-    <!-- BOTH TAB -->
-    <div class="panel" id="panel-both">
-      <div class="stage stage-both">
-        <div class="combo" id="comboMedia" style="display:none;">
-          <img id="bothFlagImg" class="combo-flag" alt="">
-          <img id="bothShapeImg" class="combo-shape" alt="">
+    <div class="panels">
+      <!-- FLAGS -->
+      <div class="panel active" id="panel-flag">
+        <div class="stage">
+          <img id="flagImg" alt="" style="display:none;">
+          <div class="placeholder" id="flagPlaceholder">Tap the big button to see a mystery flag! 🚩</div>
         </div>
-        <div class="placeholder" id="bothPlaceholder">Tap to see a flag AND a shape together! ✨</div>
+        <div class="name hidden-name" id="flagName">🙈 Tap Who is it?</div>
+        <div class="fact" id="flagFact"></div>
+        <div class="buttons">
+          <button class="action draw-btn" id="flagBtn">🎲 New Flag!</button>
+          <button class="action reveal-btn" id="flagReveal" disabled>🙈 Who is it?</button>
+        </div>
       </div>
-      <div class="name hidden-name" id="bothName">🙈 Tap Who is it?</div>
-      <div class="fact" id="bothFact"></div>
-      <div class="buttons">
-        <button class="action draw-btn" id="bothBtn">🎲 Surprise!</button>
-        <button class="action reveal-btn" id="bothReveal" disabled>🙈 Who is it?</button>
+
+      <!-- SHAPES -->
+      <div class="panel" id="panel-shape">
+        <div class="stage">
+          <img id="shapeImg" alt="" style="display:none;">
+          <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country shape! 🗺️</div>
+        </div>
+        <div class="name hidden-name" id="shapeName">🙈 Tap Who is it?</div>
+        <div class="fact" id="shapeFact"></div>
+        <div class="buttons">
+          <button class="action draw-btn" id="shapeBtn">🎲 New Shape!</button>
+          <button class="action reveal-btn" id="shapeReveal" disabled>🙈 Who is it?</button>
+        </div>
+      </div>
+
+      <!-- BOTH -->
+      <div class="panel" id="panel-both">
+        <div class="stage">
+          <div class="combo" id="comboMedia" style="display:none;">
+            <img id="bothFlagImg" class="combo-flag" alt="">
+            <img id="bothShapeImg" class="combo-shape" alt="">
+          </div>
+          <div class="placeholder" id="bothPlaceholder">Tap to see a flag AND a shape together! ✨</div>
+        </div>
+        <div class="name hidden-name" id="bothName">🙈 Tap Who is it?</div>
+        <div class="fact" id="bothFact"></div>
+        <div class="buttons">
+          <button class="action draw-btn" id="bothBtn">🎲 Surprise!</button>
+          <button class="action reveal-btn" id="bothReveal" disabled>🙈 Who is it?</button>
+        </div>
+      </div>
+
+      <!-- QUIZ -->
+      <div class="panel" id="panel-quiz">
+        <div class="difficulty">
+          <button class="diff-btn" data-diff="flag">🚩 Easy</button>
+          <button class="diff-btn active" data-diff="mix">✨ Medium</button>
+          <button class="diff-btn" data-diff="shape">🗺️ Hard</button>
+        </div>
+        <div class="stage">
+          <img id="quizImg" alt="" style="display:none;">
+          <div class="placeholder" id="quizPlaceholder">Get ready to guess... 🧠</div>
+        </div>
+        <div class="question" id="quizQuestion">Which country is this? 🤔</div>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div class="fact" id="quizFact"></div>
+        <div class="buttons">
+          <button class="action draw-btn" id="quizNext">➡️ Next!</button>
+        </div>
+      </div>
+
+      <!-- ALBUM -->
+      <div class="panel" id="panel-album">
+        <div class="album-head" id="albumHead">📔 My Stickers: 0 / 0</div>
+        <div class="album-grid" id="albumGrid"></div>
+        <div class="buttons">
+          <button class="action reveal-btn" id="resetBtn">🧹 Reset Progress</button>
+        </div>
       </div>
     </div>
-
-    <!-- QUIZ TAB -->
-    <div class="panel" id="panel-quiz">
-      <div class="stage">
-        <img id="quizImg" alt="" style="display:none;">
-        <div class="placeholder" id="quizPlaceholder">Get ready to guess... 🧠</div>
-      </div>
-      <div class="question" id="quizQuestion">Which country is this? 🤔</div>
-      <div class="quiz-options" id="quizOptions"></div>
-      <div class="fact" id="quizFact"></div>
-      <div class="buttons">
-        <button class="action draw-btn" id="quizNext">➡️ Next!</button>
-      </div>
-    </div>
-
-    <div class="count" id="count"></div>
   </div>
 
 <script>
@@ -272,7 +307,6 @@ const countries = [
   {n:"Vietnam",c:"vn"},{n:"Yemen",c:"ye"},{n:"Zambia",c:"zm"},{n:"Zimbabwe",c:"zw"}
 ];
 
-// Kid-friendly fun facts, one per country (keyed by ISO code)
 const facts = {
   af:"Its mountains, the Hindu Kush, are tall and rocky.",
   al:"In its capital Tirana, many buildings are painted in bright rainbow colours!",
@@ -474,29 +508,40 @@ const facts = {
 const HIDDEN_TEXT = "🙈 Tap Who is it?";
 const PRAISE = ["🎉 Woohoo!","🌟 Awesome!","🥳 You got it!","🚀 Genius!","🏆 Champion!"];
 
-document.getElementById("count").textContent = "🎉 " + countries.length + " countries to explore!";
+// ---- Saved progress ----
+const SAVE_KEY = "limosWorld";
+let stars = 0, best = 0, streak = 0;
+let collected = new Set();
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY)) || {};
+    stars = s.stars || 0; best = s.best || 0;
+    collected = new Set(s.collected || []);
+  } catch (e) { /* ignore */ }
+}
+function persist() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stars, best, collected: [...collected] })); }
+  catch (e) { /* ignore */ }
+}
 
 // ---- Scoreboard ----
-let stars = 0, streak = 0, best = 0;
 const scStars = document.getElementById("scStars");
 const scStreak = document.getElementById("scStreak");
 const scBest = document.getElementById("scBest");
-function addStar(n = 1) { stars += n; scStars.textContent = stars; }
-function bumpStreak() { streak++; if (streak > best) best = streak; scStreak.textContent = streak; scBest.textContent = best; }
-function resetStreak() { streak = 0; scStreak.textContent = streak; }
+function renderScore() { scStars.textContent = stars; scStreak.textContent = streak; scBest.textContent = best; }
+function addStar(n = 1) { stars += n; renderScore(); persist(); }
+function bumpStreak() { streak++; if (streak > best) best = streak; renderScore(); persist(); }
+function resetStreak() { streak = 0; renderScore(); }
 
-// ---- Fun sounds (no files needed) ----
+// ---- Sounds ----
 let audioCtx = null;
 function beep(freq, start, dur, type = "sine", gain = 0.15) {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const t = audioCtx.currentTime + start;
-  const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
+  const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
   osc.type = type; osc.frequency.value = freq;
-  g.gain.setValueAtTime(gain, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(g); g.connect(audioCtx.destination);
-  osc.start(t); osc.stop(t + dur);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + dur);
 }
 function playPop()   { beep(520, 0, 0.12, "triangle", 0.18); }
 function playCheer() { [523, 659, 784, 1046].forEach((f, i) => beep(f, i * 0.09, 0.18, "square", 0.12)); }
@@ -505,7 +550,7 @@ function playBuzz()  { beep(196, 0, 0.25, "sawtooth", 0.14); beep(155, 0.12, 0.2
 // ---- Confetti ----
 const CONFETTI = ["🎉","⭐","🌟","🎊","✨","🏆","🥳","🌈"];
 function spawnConfetti() {
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 22; i++) {
     const el = document.createElement("div");
     el.className = "confetti";
     el.textContent = CONFETTI[Math.floor(Math.random() * CONFETTI.length)];
@@ -517,7 +562,45 @@ function spawnConfetti() {
   }
 }
 
-// ---- Tab switching ----
+function randomCountry() { return countries[Math.floor(Math.random() * countries.length)]; }
+const flagSrc  = country => "https://flagcdn.com/w640/" + country.c + ".png";
+const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png";
+
+// ---- Sticker album ----
+const albumGrid = document.getElementById("albumGrid");
+const albumHead = document.getElementById("albumHead");
+let albumBuilt = false;
+function buildAlbum() {
+  albumGrid.innerHTML = "";
+  countries.forEach(country => {
+    const cell = document.createElement("div");
+    cell.className = "sticker" + (collected.has(country.c) ? " got" : "");
+    cell.dataset.code = country.c;
+    if (collected.has(country.c)) {
+      cell.innerHTML = '<img src="' + flagSrc(country) + '" alt=""><span class="nm">' + country.n + '</span>';
+    } else {
+      cell.innerHTML = '<span class="lock">❓</span>';
+    }
+    albumGrid.appendChild(cell);
+  });
+  albumBuilt = true;
+  updateAlbumHead();
+}
+function updateAlbumHead() {
+  albumHead.textContent = "📔 My Stickers: " + collected.size + " / " + countries.length;
+}
+function collect(country) {
+  if (collected.has(country.c)) return;
+  collected.add(country.c);
+  persist();
+  updateAlbumHead();
+  if (albumBuilt) {
+    const cell = albumGrid.querySelector('.sticker[data-code="' + country.c + '"]');
+    if (cell) { cell.classList.add("got"); cell.innerHTML = '<img src="' + flagSrc(country) + '" alt=""><span class="nm">' + country.n + '</span>'; }
+  }
+}
+
+// ---- Tabs ----
 let quizStarted = false;
 document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
@@ -526,16 +609,11 @@ document.querySelectorAll(".tab").forEach(tab => {
     tab.classList.add("active");
     document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
     if (tab.dataset.tab === "quiz" && !quizStarted) { quizStarted = true; newQuizQuestion(); }
+    if (tab.dataset.tab === "album") buildAlbum();
   });
 });
 
-function randomCountry() { return countries[Math.floor(Math.random() * countries.length)]; }
-
-// Image source helpers
-const flagSrc  = country => "https://flagcdn.com/w640/" + country.c + ".png";
-const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png";
-
-// ---- Explore panels (Flags / Shapes / Both) ----
+// ---- Explore panels ----
 function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId, factId }) {
   const drawBtn = document.getElementById(drawId);
   const revealBtn = document.getElementById(revealId);
@@ -544,44 +622,32 @@ function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId, 
   const nameEl = document.getElementById(nameId);
   const factEl = document.getElementById(factId);
   const imgs = images.map(({ id, srcFor }) => ({ el: document.getElementById(id), srcFor }));
-  let current = null;
-  let scored = false;
+  let current = null, scored = false;
 
   drawBtn.addEventListener("click", () => {
-    current = randomCountry();
-    scored = false;
+    current = randomCountry(); scored = false;
     imgs.forEach(({ el, srcFor }) => { el.src = srcFor(current); el.alt = ""; });
-    media.style.display = "";
-    placeholder.style.display = "none";
-    nameEl.textContent = HIDDEN_TEXT;
-    nameEl.classList.add("hidden-name");
-    nameEl.classList.remove("revealed");
-    factEl.textContent = "";
-    revealBtn.disabled = false;
-    playPop();
+    media.style.display = ""; placeholder.style.display = "none";
+    nameEl.textContent = HIDDEN_TEXT; nameEl.classList.add("hidden-name"); nameEl.classList.remove("revealed");
+    factEl.textContent = ""; revealBtn.disabled = false; playPop();
   });
 
   revealBtn.addEventListener("click", () => {
     if (!current) return;
-    nameEl.textContent = "🎉 " + current.n + "!";
-    nameEl.classList.remove("hidden-name");
-    void nameEl.offsetWidth;            // restart the boing animation
-    nameEl.classList.add("revealed");
+    nameEl.textContent = "🎉 " + current.n + "!"; nameEl.classList.remove("hidden-name");
+    void nameEl.offsetWidth; nameEl.classList.add("revealed");
     factEl.textContent = "💡 " + (facts[current.c] || "A wonderful place to explore!");
-    if (!scored) { scored = true; addStar(); }   // one star per drawn country
-    playCheer();
-    spawnConfetti();
+    if (!scored) { scored = true; addStar(); }
+    collect(current);
+    playCheer(); spawnConfetti();
   });
 }
-
 setupPanel({ drawId:"flagBtn", revealId:"flagReveal", mediaId:"flagImg",
   placeholderId:"flagPlaceholder", nameId:"flagName", factId:"flagFact",
   images:[{ id:"flagImg", srcFor:flagSrc }] });
-
 setupPanel({ drawId:"shapeBtn", revealId:"shapeReveal", mediaId:"shapeImg",
   placeholderId:"shapePlaceholder", nameId:"shapeName", factId:"shapeFact",
   images:[{ id:"shapeImg", srcFor:shapeSrc }] });
-
 setupPanel({ drawId:"bothBtn", revealId:"bothReveal", mediaId:"comboMedia",
   placeholderId:"bothPlaceholder", nameId:"bothName", factId:"bothFact",
   images:[{ id:"bothFlagImg", srcFor:flagSrc }, { id:"bothShapeImg", srcFor:shapeSrc }] });
@@ -593,7 +659,16 @@ const quizQuestion = document.getElementById("quizQuestion");
 const quizOptions = document.getElementById("quizOptions");
 const quizFact = document.getElementById("quizFact");
 const quizNext = document.getElementById("quizNext");
-let quizAnswer = null, quizAnswered = false;
+let quizAnswer = null, quizAnswered = false, quizMode = "mix";
+
+document.querySelectorAll(".diff-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    quizMode = btn.dataset.diff;
+    newQuizQuestion();
+  });
+});
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -602,63 +677,66 @@ function shuffle(arr) {
   }
   return arr;
 }
-
 function newQuizQuestion() {
-  quizAnswered = false;
-  quizAnswer = randomCountry();
-
-  // Show either a flag or a map shape
-  const useShape = Math.random() < 0.5;
+  quizAnswered = false; quizAnswer = randomCountry();
+  const useShape = quizMode === "shape" ? true : quizMode === "flag" ? false : Math.random() < 0.5;
   quizImg.className = useShape ? "as-shape" : "as-flag";
   quizImg.src = useShape ? shapeSrc(quizAnswer) : flagSrc(quizAnswer);
-  quizImg.style.display = "block";
-  quizPlaceholder.style.display = "none";
+  quizImg.style.display = "block"; quizPlaceholder.style.display = "none";
   quizQuestion.textContent = useShape ? "Which country has this shape? 🤔" : "Which country owns this flag? 🤔";
 
-  // Build 4 options: the answer + 3 different random countries
   const opts = [quizAnswer];
   while (opts.length < 4) {
     const pick = randomCountry();
     if (!opts.some(o => o.c === pick.c)) opts.push(pick);
   }
   shuffle(opts);
-
   quizOptions.innerHTML = "";
   opts.forEach(country => {
     const btn = document.createElement("button");
-    btn.className = "quiz-opt";
-    btn.textContent = country.n;
+    btn.className = "quiz-opt"; btn.textContent = country.n;
     btn.addEventListener("click", () => answerQuiz(country, btn));
     quizOptions.appendChild(btn);
   });
-
-  quizFact.textContent = "";
-  quizNext.style.display = "none";
+  quizFact.textContent = ""; quizNext.style.display = "none";
 }
-
 function answerQuiz(country, btn) {
   if (quizAnswered) return;
   quizAnswered = true;
-  const optButtons = quizOptions.querySelectorAll(".quiz-opt");
-  optButtons.forEach(b => { b.disabled = true; if (b.textContent === quizAnswer.n) b.classList.add("correct"); });
-
+  quizOptions.querySelectorAll(".quiz-opt").forEach(b => {
+    b.disabled = true; if (b.textContent === quizAnswer.n) b.classList.add("correct");
+  });
+  collect(quizAnswer);
   if (country.c === quizAnswer.c) {
-    addStar();
-    bumpStreak();
-    quizFact.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)] +
-      " It's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
-    playCheer();
-    spawnConfetti();
+    addStar(); bumpStreak();
+    quizFact.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)] + " It's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
+    playCheer(); spawnConfetti();
   } else {
-    btn.classList.add("wrong");
-    resetStreak();
+    btn.classList.add("wrong"); resetStreak();
     quizFact.textContent = "🙂 Not quite — it's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
     playBuzz();
   }
   quizNext.style.display = "";
 }
-
 quizNext.addEventListener("click", newQuizQuestion);
+
+// ---- Reset ----
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("Start over? This clears your stars and stickers.")) return;
+  stars = 0; best = 0; streak = 0; collected = new Set();
+  persist(); renderScore(); buildAlbum();
+});
+
+// ---- Start ----
+loadSave();
+renderScore();
+
+// ---- Make it installable / work offline ----
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
