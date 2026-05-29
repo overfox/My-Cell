@@ -13,6 +13,7 @@
     --yellow: #ffd23f;
     --purple: #9b5de5;
     --blue: #4cc9f0;
+    --green: #43c463;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -33,156 +34,127 @@
     background: var(--cream);
     border: 6px solid #fff;
     border-radius: 30px;
-    padding: 20px 22px 26px;
+    padding: 18px 22px 24px;
     width: 100%;
-    max-width: 500px;
+    max-width: 520px;
     box-shadow: 0 18px 0 rgba(0,0,0,0.12), 0 24px 50px rgba(0,0,0,0.25);
     text-align: center;
     position: relative;
   }
   h1 {
-    margin: 4px 0 16px;
-    font-size: 2.2rem;
+    margin: 4px 0 12px;
+    font-size: 2.1rem;
     font-weight: 800;
     color: var(--purple);
     text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(155,93,229,0.25);
     animation: wiggle 3s ease-in-out infinite;
   }
-  @keyframes wiggle {
-    0%,100% { transform: rotate(-2deg); }
-    50%     { transform: rotate(2deg); }
+  @keyframes wiggle { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+  .scoreboard {
+    display: flex; gap: 8px; justify-content: center; margin-bottom: 14px;
   }
-  .tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 18px;
+  .chip {
+    background: #fff; border: 3px solid var(--ink); border-radius: 14px;
+    padding: 6px 10px; font-weight: 800; font-size: 0.95rem;
+    box-shadow: 0 3px 0 var(--ink); min-width: 78px;
   }
+  .chip b { display: block; font-size: 1.2rem; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
   .tab {
-    flex: 1;
-    border: 4px solid var(--ink);
-    background: #fff;
-    color: var(--ink);
-    padding: 12px 4px;
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 800;
-    border-radius: 18px;
-    cursor: pointer;
-    box-shadow: 0 5px 0 var(--ink);
+    flex: 1; border: 4px solid var(--ink); background: #fff; color: var(--ink);
+    padding: 11px 2px; font-family: inherit; font-size: 0.92rem; font-weight: 800;
+    border-radius: 16px; cursor: pointer; box-shadow: 0 5px 0 var(--ink);
     transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s;
   }
   .tab:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
   .tab.active { background: var(--yellow); }
+
   .panel { display: none; }
   .panel.active { display: block; animation: pop 0.25s ease; }
-  @keyframes pop {
-    0% { transform: scale(0.96); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-  }
+  @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
   .stage {
-    background: #fff;
-    border: 5px dashed var(--blue);
-    border-radius: 22px;
-    height: 250px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    margin-bottom: 16px;
-    padding: 10px;
+    background: #fff; border: 5px dashed var(--blue); border-radius: 22px;
+    height: 240px; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; margin-bottom: 14px; padding: 10px;
   }
   .stage img { max-width: 100%; max-height: 100%; border-radius: 8px; }
-  #flagImg { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+  #flagImg, #quizImg.as-flag, .combo-flag { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
   /* mapsicon shapes are white silhouettes — tint them bright purple */
-  #shapeImg, .combo-shape {
+  #shapeImg, .combo-shape, #quizImg.as-shape {
     padding: 8px;
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25))
             brightness(0) saturate(100%) invert(38%) sepia(89%)
             saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%);
   }
   .stage-both { padding: 12px; }
-  .combo {
-    display: flex; align-items: center; justify-content: center;
-    gap: 14px; width: 100%; height: 100%;
-  }
+  .combo { display: flex; align-items: center; justify-content: center; gap: 14px; width: 100%; height: 100%; }
   .combo img { max-width: 48%; max-height: 100%; border-radius: 8px; }
-  .combo-flag { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
   @media (max-width: 400px) {
     .combo { flex-direction: column; gap: 8px; }
     .combo img { max-width: 78%; max-height: 48%; }
   }
-  .placeholder {
-    color: #8a8d9f;
-    font-size: 1.15rem;
-    font-weight: 700;
-    padding: 0 18px;
-    line-height: 1.4;
-  }
-  .name {
-    min-height: 2.4rem;
-    font-size: 1.9rem;
-    font-weight: 800;
-    margin-bottom: 18px;
-    color: var(--teal);
-  }
+
+  .placeholder { color: #8a8d9f; font-size: 1.12rem; font-weight: 700; padding: 0 18px; line-height: 1.4; }
+  .name { min-height: 2.3rem; font-size: 1.8rem; font-weight: 800; margin-bottom: 6px; color: var(--teal); }
   .name.revealed { animation: boing 0.5s ease; }
-  @keyframes boing {
-    0% { transform: scale(0.3); }
-    60% { transform: scale(1.25); }
-    100% { transform: scale(1); }
+  @keyframes boing { 0% { transform: scale(0.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  .name.hidden-name { color: #b7bac7; font-weight: 700; font-size: 1.15rem; }
+
+  .fact {
+    min-height: 1.2rem; font-size: 1.02rem; font-weight: 700; color: var(--purple);
+    margin: 0 auto 14px; max-width: 440px; line-height: 1.35;
   }
-  .name.hidden-name {
-    color: #b7bac7;
-    font-weight: 700;
-    font-size: 1.2rem;
-  }
+
   .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   button.action {
-    flex: 1 1 150px;
-    border: 4px solid var(--ink);
-    border-radius: 20px;
-    padding: 16px 14px;
-    font-family: inherit;
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--ink);
-    cursor: pointer;
-    box-shadow: 0 6px 0 var(--ink);
+    flex: 1 1 150px; border: 4px solid var(--ink); border-radius: 20px; padding: 15px 12px;
+    font-family: inherit; font-size: 1.2rem; font-weight: 800; color: var(--ink);
+    cursor: pointer; box-shadow: 0 6px 0 var(--ink);
     transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s;
   }
   button.action:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
   button.action:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 6px 0 var(--ink); transform: none; }
   .draw-btn { background: var(--yellow); }
   .reveal-btn { background: var(--red); color: #fff; }
-  .count {
-    margin-top: 16px;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--purple);
+
+  /* Quiz */
+  .question { font-size: 1.25rem; font-weight: 800; margin: 2px 0 12px; color: var(--ink); }
+  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .quiz-opt {
+    border: 4px solid var(--ink); background: #fff; color: var(--ink);
+    border-radius: 16px; padding: 14px 8px; font-family: inherit; font-size: 1rem;
+    font-weight: 800; cursor: pointer; box-shadow: 0 5px 0 var(--ink); min-height: 60px;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
-  /* confetti */
-  .confetti {
-    position: fixed;
-    top: -40px;
-    font-size: 1.6rem;
-    pointer-events: none;
-    z-index: 999;
-    animation: fall linear forwards;
-  }
-  @keyframes fall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; }
-  }
+  .quiz-opt:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .quiz-opt.correct { background: var(--green); color: #fff; }
+  .quiz-opt.wrong   { background: var(--red); color: #fff; }
+  .quiz-opt:disabled { cursor: default; }
+
+  .count { margin-top: 14px; font-size: 0.95rem; font-weight: 700; color: var(--purple); }
+
+  .confetti { position: fixed; top: -40px; font-size: 1.6rem; pointer-events: none; z-index: 999; animation: fall linear forwards; }
+  @keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; } }
 </style>
 </head>
 <body>
   <div class="card">
     <h1>🌍 Limo's World 🚀</h1>
 
+    <div class="scoreboard">
+      <div class="chip">⭐ Stars<b id="scStars">0</b></div>
+      <div class="chip">🔥 Streak<b id="scStreak">0</b></div>
+      <div class="chip">🏆 Best<b id="scBest">0</b></div>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="flag">🚩 Flags</button>
       <button class="tab" data-tab="shape">🗺️ Shapes</button>
       <button class="tab" data-tab="both">✨ Both</button>
+      <button class="tab" data-tab="quiz">🧠 Quiz</button>
     </div>
 
     <!-- FLAGS TAB -->
@@ -192,6 +164,7 @@
         <div class="placeholder" id="flagPlaceholder">Tap the big button to see a mystery flag! 🚩</div>
       </div>
       <div class="name hidden-name" id="flagName">🙈 Tap Who is it?</div>
+      <div class="fact" id="flagFact"></div>
       <div class="buttons">
         <button class="action draw-btn" id="flagBtn">🎲 New Flag!</button>
         <button class="action reveal-btn" id="flagReveal" disabled>🙈 Who is it?</button>
@@ -205,6 +178,7 @@
         <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country shape! 🗺️</div>
       </div>
       <div class="name hidden-name" id="shapeName">🙈 Tap Who is it?</div>
+      <div class="fact" id="shapeFact"></div>
       <div class="buttons">
         <button class="action draw-btn" id="shapeBtn">🎲 New Shape!</button>
         <button class="action reveal-btn" id="shapeReveal" disabled>🙈 Who is it?</button>
@@ -221,9 +195,24 @@
         <div class="placeholder" id="bothPlaceholder">Tap to see a flag AND a shape together! ✨</div>
       </div>
       <div class="name hidden-name" id="bothName">🙈 Tap Who is it?</div>
+      <div class="fact" id="bothFact"></div>
       <div class="buttons">
         <button class="action draw-btn" id="bothBtn">🎲 Surprise!</button>
         <button class="action reveal-btn" id="bothReveal" disabled>🙈 Who is it?</button>
+      </div>
+    </div>
+
+    <!-- QUIZ TAB -->
+    <div class="panel" id="panel-quiz">
+      <div class="stage">
+        <img id="quizImg" alt="" style="display:none;">
+        <div class="placeholder" id="quizPlaceholder">Get ready to guess... 🧠</div>
+      </div>
+      <div class="question" id="quizQuestion">Which country is this? 🤔</div>
+      <div class="quiz-options" id="quizOptions"></div>
+      <div class="fact" id="quizFact"></div>
+      <div class="buttons">
+        <button class="action draw-btn" id="quizNext">➡️ Next!</button>
       </div>
     </div>
 
@@ -283,9 +272,218 @@ const countries = [
   {n:"Vietnam",c:"vn"},{n:"Yemen",c:"ye"},{n:"Zambia",c:"zm"},{n:"Zimbabwe",c:"zw"}
 ];
 
+// Kid-friendly fun facts, one per country (keyed by ISO code)
+const facts = {
+  af:"Its mountains, the Hindu Kush, are tall and rocky.",
+  al:"In its capital Tirana, many buildings are painted in bright rainbow colours!",
+  dz:"It's the biggest country in Africa, mostly the giant Sahara Desert.",
+  ad:"A tiny mountain country between France and Spain — with no airport at all!",
+  ao:"Home to the rare giant sable antelope.",
+  ag:"It's said to have 365 beaches — one for every day of the year!",
+  ar:"Famous for tasty steak, great football, and penguins in the chilly south!",
+  am:"One of the world's oldest countries, full of ancient stone churches.",
+  au:"The only country that is also a whole continent — with kangaroos and koalas!",
+  at:"Its capital Vienna is the city of classical music and Mozart.",
+  az:"Nicknamed the 'Land of Fire' — flames burn right out of the ground!",
+  bs:"Has bright blue water and famous swimming pigs on one beach!",
+  bh:"Has a lonely tree that has survived 400 years in the desert.",
+  bd:"Home to Bengal tigers and the world's largest mangrove forest.",
+  bb:"A sunny Caribbean island and the home of singer Rihanna!",
+  by:"Has ancient forests where wild bison roam.",
+  be:"Famous for yummy chocolate, waffles, and french fries!",
+  bz:"Has a giant underwater cave called the Great Blue Hole.",
+  bj:"Has a 'water village' with houses built on stilts above a lake.",
+  bt:"A mountain kingdom that measures success by happiness — and loves dragons!",
+  bo:"Has a salt flat so flat and shiny it looks like a giant mirror!",
+  ba:"Famous for an old stone bridge that brave divers leap from.",
+  bw:"Home to huge herds of elephants and a giant green delta.",
+  br:"The biggest country in South America, with the vast Amazon rainforest!",
+  bn:"A small, rich kingdom on Borneo with a golden-domed mosque.",
+  bg:"Grows whole fields of roses to make sweet-smelling perfume.",
+  bf:"Its name means 'Land of Honest People'.",
+  bi:"Famous for amazing drummers who play giant drums!",
+  cv:"A group of sunny islands out in the Atlantic Ocean.",
+  kh:"Home to Angkor Wat, the largest religious temple in the world!",
+  cm:"Called 'Africa in miniature' — it has beaches, deserts, mountains and jungles.",
+  ca:"The second-biggest country on Earth, with maple syrup and lots of moose!",
+  cf:"Home to lowland gorillas and forest elephants.",
+  td:"Has a lake shaped like a giant butterfly!",
+  cl:"A super long, skinny country with the driest desert on Earth, the Atacama.",
+  cn:"Home to the Great Wall — so long it would cross many countries!",
+  co:"Famous for delicious coffee and colourful, happy festivals.",
+  km:"Islands that smell sweet because they grow flowers for perfume!",
+  cg:"Covered in thick rainforest where gorillas live.",
+  cd:"Has the Congo River, the deepest river in the world!",
+  cr:"A green land full of rainforests, sloths and colourful frogs.",
+  ci:"The world's biggest grower of cocoa beans — that's what chocolate is made of!",
+  hr:"Has a beautiful coast and a city that looks like a fairy-tale castle.",
+  cu:"Famous for colourful old cars from the 1950s still zooming around!",
+  cy:"An island where, legend says, the goddess of love was born.",
+  cz:"Its capital Prague has a 600-year-old astronomical clock!",
+  dk:"The home of LEGO bricks and the Little Mermaid statue!",
+  dj:"Has a lake so salty you float on top without even trying!",
+  dm:"The 'Nature Island' — it even has a lake that boils!",
+  do:"Where Christopher Columbus built the first European town in the Americas.",
+  ec:"Named after the Equator, home to the giant Galápagos tortoises!",
+  eg:"Home to the Great Pyramids and the giant Sphinx!",
+  sv:"The smallest country in Central America, dotted with volcanoes.",
+  gq:"Sits right on the Equator, covered in steamy rainforest.",
+  er:"Its capital Asmara has buildings shaped like rockets and ships!",
+  ee:"So high-tech you can even vote on the internet!",
+  sz:"A small kingdom famous for colourful traditional festivals.",
+  et:"Where the oldest human bones, nicknamed 'Lucy', were found!",
+  fj:"Over 300 tropical islands with friendly people and coral reefs.",
+  fi:"The land of a thousand lakes, reindeer, and the real Santa Claus!",
+  fr:"Home of the Eiffel Tower and lots of yummy bread and cheese!",
+  ga:"Almost all rainforest, where elephants even stroll on the beach!",
+  gm:"The smallest country in mainland Africa, wrapped around a river.",
+  ge:"People here have been making wine for 8,000 years!",
+  de:"Famous for cars, castles, and the fairy-tale castle Neuschwanstein!",
+  gh:"Famous for colourful kente cloth and being rich in gold.",
+  gr:"The birthplace of the Olympic Games thousands of years ago!",
+  gd:"The 'Spice Island' — it grows nutmeg and cinnamon.",
+  gt:"Has ancient Maya pyramids hidden in the jungle!",
+  gn:"A West African country where many big rivers begin.",
+  gw:"Has lovely islands where hippos sometimes swim in the sea!",
+  gy:"Home to Kaieteur, one of the most powerful waterfalls on Earth.",
+  ht:"Shares an island with the Dominican Republic and has lovely mountains.",
+  hn:"Has rainforests and amazing coral reefs full of fish.",
+  hu:"Its capital Budapest has warm baths you can swim in!",
+  is:"A land of volcanoes, glaciers, and hot water spouts called geysers!",
+  in:"Home to the beautiful Taj Mahal and over a billion people!",
+  id:"Made of more than 17,000 islands and home to Komodo dragons!",
+  ir:"Famous for beautiful patterned carpets and ancient palaces.",
+  iq:"Where the very first cities and writing were invented long ago!",
+  ie:"The 'Emerald Isle' — super green and full of leprechaun legends!",
+  il:"Has the Dead Sea, so salty that you float like a cork!",
+  it:"Shaped like a boot, and the home of pizza and pasta!",
+  jm:"The birthplace of reggae music and super-fast runners!",
+  jp:"Land of cherry blossoms, super-fast bullet trains, and robots!",
+  jo:"Home to Petra, a whole city carved into pink rock!",
+  kz:"The biggest landlocked country — and rockets blast into space from here!",
+  ke:"Famous for safaris with lions, elephants and giraffes!",
+  ki:"Tiny Pacific islands among the first to see each new day.",
+  kw:"A desert country famous for its tall, ball-shaped towers.",
+  kg:"A mountain country where people still live in round tents called yurts.",
+  la:"Has thousands of mysterious giant stone jars on a green plain!",
+  lv:"Its capital Riga is full of fancy, decorated buildings.",
+  lb:"Home to giant ancient cedar trees, which are on its flag!",
+  ls:"A whole country up in the mountains — the 'Kingdom in the Sky'!",
+  lr:"Its capital is named after a United States president.",
+  ly:"Mostly Sahara Desert, with ancient Roman ruins by the sea.",
+  li:"So small you can walk across it — and it's ruled by a prince in a castle!",
+  lt:"Has a hill covered with hundreds of thousands of crosses.",
+  lu:"A tiny country with deep green valleys and lots of castles.",
+  mg:"An island where lemurs live — and nowhere else on Earth!",
+  mw:"Its huge lake has more kinds of fish than any other lake!",
+  my:"Home to the tall Petronas Towers and orangutans in the jungle!",
+  mv:"Islands so flat and sandy they barely peek above the sparkling sea.",
+  ml:"Home to Timbuktu, an ancient city of learning in the desert.",
+  mt:"A tiny island with stone temples older than the pyramids!",
+  mh:"Coral islands shaped like rings in the middle of the Pacific.",
+  mr:"Has a giant 'Eye of the Sahara' you can see from space!",
+  mu:"Was once home to the famous (now extinct) dodo bird.",
+  mx:"Home to ancient pyramids, colourful festivals — and tacos!",
+  fm:"Hundreds of tiny islands with ancient stone ruins in the sea.",
+  md:"Has one of the world's largest underground wine cellars!",
+  mc:"A teeny-tiny country famous for fast Formula 1 race cars!",
+  mn:"Land of wide grasslands where eagle hunters ride horses!",
+  me:"Its name means 'Black Mountain' — with gorgeous mountains and sea.",
+  ma:"Has busy, colourful markets and the edge of the Sahara Desert.",
+  mz:"Has beautiful beaches and gentle dugongs (sea cows!) offshore.",
+  mm:"Famous for thousands of golden temples in a place called Bagan.",
+  na:"Has some of the tallest sand dunes in the whole world!",
+  nr:"One of the smallest countries — you can drive around it in 30 minutes!",
+  np:"Home to Mount Everest, the tallest mountain on Earth!",
+  nl:"Famous for windmills, tulips, bikes, and lots of cheese!",
+  nz:"Where the 'Lord of the Rings' films were made, with kiwi birds!",
+  ni:"Has volcanoes you can slide down on a board!",
+  ne:"Where dinosaur bones are found buried in the Sahara sand!",
+  ng:"The country with the most people in all of Africa!",
+  kp:"A very secretive country with huge statues and parades.",
+  mk:"Has Lake Ohrid, one of the oldest and deepest lakes in Europe.",
+  no:"Land of the midnight sun, glittering fjords, and Vikings!",
+  om:"Famous for frankincense, a sweet-smelling treasure from trees.",
+  pk:"Home to K2, the second-highest mountain in the world!",
+  pw:"Has a magical lake filled with millions of harmless jellyfish!",
+  ps:"Home to some of the oldest towns on Earth, like Jericho.",
+  pa:"Has a famous canal where ships sail between two oceans!",
+  pg:"Has more languages than any other country — over 800!",
+  py:"Has a giant wetland full of caimans, capybaras and birds.",
+  pe:"Home to Machu Picchu, an ancient mountain city — and llamas!",
+  ph:"Made of over 7,000 islands with funny 'Chocolate Hills'!",
+  pl:"Has a salt mine with a whole chapel carved from salt!",
+  pt:"Its sailors were among the first to explore the world's oceans.",
+  qa:"A desert country with super-modern, shiny skyscrapers.",
+  ro:"Home to Dracula's spooky castle in the forests of Transylvania!",
+  ru:"The biggest country in the world, stretching across 11 time zones!",
+  rw:"The 'Land of a Thousand Hills', home to rare mountain gorillas.",
+  kn:"The smallest country in the Americas, with a sleeping volcano.",
+  lc:"Has two pointy mountains, the Pitons, rising from the sea.",
+  vc:"Pretty islands used as a setting for pirate movies!",
+  ws:"A Pacific island where people share stories through dance.",
+  sm:"One of the world's oldest and smallest countries, on a mountain top!",
+  st:"Tiny islands sitting almost right on the Equator.",
+  sa:"A huge desert kingdom, home of camels and palm-tree oases.",
+  sn:"Home to a pink lake that really looks like strawberry milk!",
+  rs:"Has lively festivals where two great rivers meet.",
+  sc:"Has giant tortoises and the world's biggest seed, the coco de mer!",
+  sl:"Has beautiful beaches and is famous for shiny diamonds.",
+  sg:"A super-clean city-country with a hotel that has a boat on its roof!",
+  sk:"Has more castles for its size than almost anywhere!",
+  si:"Has a fairy-tale island church in the middle of a lake!",
+  sb:"Pacific islands surrounded by colourful coral reefs.",
+  so:"Has the longest coastline on mainland Africa.",
+  za:"Has THREE capital cities and amazing safari animals!",
+  kr:"Land of K-pop, video games, and super-fast internet!",
+  ss:"The world's youngest country, born in 2011!",
+  es:"Famous for flamenco dancing, fiestas, and tasty tapas!",
+  lk:"An island shaped like a teardrop, famous for tea and elephants!",
+  sd:"Actually has MORE pyramids than Egypt!",
+  sr:"The smallest country in South America, mostly rainforest.",
+  se:"Home of ABBA, meatballs, and a hotel made of ice!",
+  ch:"Famous for chocolate, cheese, watches, and snowy Alps!",
+  sy:"Home to Damascus, one of the oldest cities people ever lived in.",
+  tj:"A country of super-high mountains called the 'Roof of the World'.",
+  tz:"Home to Mount Kilimanjaro, the tallest mountain in Africa!",
+  th:"Famous for golden temples, elephants, and yummy noodles!",
+  tl:"A young island country with coral reefs full of life.",
+  tg:"A thin country in West Africa with palm-lined beaches.",
+  to:"A kingdom of islands where you can swim near gentle whales!",
+  tt:"The home of steel-drum music and a giant Carnival party!",
+  tn:"Some 'Star Wars' desert scenes were filmed here!",
+  tr:"A country in two continents at once — Europe AND Asia!",
+  tm:"Has a fiery desert crater nicknamed the 'Door to Hell'!",
+  tv:"One of the smallest and lowest countries, barely above the sea.",
+  ug:"Home to rare mountain gorillas and the source of the Nile River.",
+  ua:"Has huge golden fields of sunflowers and wheat!",
+  ae:"Home to the tallest building in the world, the Burj Khalifa!",
+  gb:"Land of castles, royal guards, and red double-decker buses!",
+  us:"Has 50 states, from snowy mountains to sunny beaches!",
+  uy:"A friendly country that loves football and barbecues!",
+  uz:"Has dazzling blue-tiled buildings along the old Silk Road.",
+  vu:"Has a volcano you can walk up to and watch glow at night!",
+  va:"The smallest country in the world — walk across it in minutes!",
+  ve:"Home to Angel Falls, the tallest waterfall on Earth!",
+  vn:"Has a magical bay filled with thousands of towering rocky islands.",
+  ye:"Has 'skyscraper' houses made of mud, hundreds of years old!",
+  zm:"Shares the thundering Victoria Falls, a giant waterfall!",
+  zw:"Home to Great Zimbabwe, an ancient city of huge stone walls."
+};
+
 const HIDDEN_TEXT = "🙈 Tap Who is it?";
+const PRAISE = ["🎉 Woohoo!","🌟 Awesome!","🥳 You got it!","🚀 Genius!","🏆 Champion!"];
 
 document.getElementById("count").textContent = "🎉 " + countries.length + " countries to explore!";
+
+// ---- Scoreboard ----
+let stars = 0, streak = 0, best = 0;
+const scStars = document.getElementById("scStars");
+const scStreak = document.getElementById("scStreak");
+const scBest = document.getElementById("scBest");
+function addStar(n = 1) { stars += n; scStars.textContent = stars; }
+function bumpStreak() { streak++; if (streak > best) best = streak; scStreak.textContent = streak; scBest.textContent = best; }
+function resetStreak() { streak = 0; scStreak.textContent = streak; }
 
 // ---- Fun sounds (no files needed) ----
 let audioCtx = null;
@@ -302,6 +500,7 @@ function beep(freq, start, dur, type = "sine", gain = 0.15) {
 }
 function playPop()   { beep(520, 0, 0.12, "triangle", 0.18); }
 function playCheer() { [523, 659, 784, 1046].forEach((f, i) => beep(f, i * 0.09, 0.18, "square", 0.12)); }
+function playBuzz()  { beep(196, 0, 0.25, "sawtooth", 0.14); beep(155, 0.12, 0.28, "sawtooth", 0.14); }
 
 // ---- Confetti ----
 const CONFETTI = ["🎉","⭐","🌟","🎊","✨","🏆","🥳","🌈"];
@@ -319,43 +518,45 @@ function spawnConfetti() {
 }
 
 // ---- Tab switching ----
+let quizStarted = false;
 document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
     tab.classList.add("active");
     document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+    if (tab.dataset.tab === "quiz" && !quizStarted) { quizStarted = true; newQuizQuestion(); }
   });
 });
 
-function randomCountry() {
-  return countries[Math.floor(Math.random() * countries.length)];
-}
+function randomCountry() { return countries[Math.floor(Math.random() * countries.length)]; }
 
 // Image source helpers
 const flagSrc  = country => "https://flagcdn.com/w640/" + country.c + ".png";
 const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png";
 
-// ---- Generic wiring for a draw/reveal panel ----
-function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId }) {
+// ---- Explore panels (Flags / Shapes / Both) ----
+function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId, factId }) {
   const drawBtn = document.getElementById(drawId);
   const revealBtn = document.getElementById(revealId);
   const media = document.getElementById(mediaId);
   const placeholder = document.getElementById(placeholderId);
   const nameEl = document.getElementById(nameId);
+  const factEl = document.getElementById(factId);
   const imgs = images.map(({ id, srcFor }) => ({ el: document.getElementById(id), srcFor }));
   let current = null;
+  let scored = false;
 
   drawBtn.addEventListener("click", () => {
     current = randomCountry();
+    scored = false;
     imgs.forEach(({ el, srcFor }) => { el.src = srcFor(current); el.alt = ""; });
     media.style.display = "";
     placeholder.style.display = "none";
-
-    // Hide the name again every time a new country is drawn
     nameEl.textContent = HIDDEN_TEXT;
     nameEl.classList.add("hidden-name");
     nameEl.classList.remove("revealed");
+    factEl.textContent = "";
     revealBtn.disabled = false;
     playPop();
   });
@@ -364,36 +565,100 @@ function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId }
     if (!current) return;
     nameEl.textContent = "🎉 " + current.n + "!";
     nameEl.classList.remove("hidden-name");
-    void nameEl.offsetWidth;       // restart the boing animation
+    void nameEl.offsetWidth;            // restart the boing animation
     nameEl.classList.add("revealed");
+    factEl.textContent = "💡 " + (facts[current.c] || "A wonderful place to explore!");
+    if (!scored) { scored = true; addStar(); }   // one star per drawn country
     playCheer();
     spawnConfetti();
   });
 }
 
-// Flags tab
-setupPanel({
-  drawId: "flagBtn", revealId: "flagReveal", mediaId: "flagImg",
-  placeholderId: "flagPlaceholder", nameId: "flagName",
-  images: [{ id: "flagImg", srcFor: flagSrc }]
-});
+setupPanel({ drawId:"flagBtn", revealId:"flagReveal", mediaId:"flagImg",
+  placeholderId:"flagPlaceholder", nameId:"flagName", factId:"flagFact",
+  images:[{ id:"flagImg", srcFor:flagSrc }] });
 
-// Map shapes tab
-setupPanel({
-  drawId: "shapeBtn", revealId: "shapeReveal", mediaId: "shapeImg",
-  placeholderId: "shapePlaceholder", nameId: "shapeName",
-  images: [{ id: "shapeImg", srcFor: shapeSrc }]
-});
+setupPanel({ drawId:"shapeBtn", revealId:"shapeReveal", mediaId:"shapeImg",
+  placeholderId:"shapePlaceholder", nameId:"shapeName", factId:"shapeFact",
+  images:[{ id:"shapeImg", srcFor:shapeSrc }] });
 
-// Both tab: flag + map shape together
-setupPanel({
-  drawId: "bothBtn", revealId: "bothReveal", mediaId: "comboMedia",
-  placeholderId: "bothPlaceholder", nameId: "bothName",
-  images: [
-    { id: "bothFlagImg", srcFor: flagSrc },
-    { id: "bothShapeImg", srcFor: shapeSrc }
-  ]
-});
+setupPanel({ drawId:"bothBtn", revealId:"bothReveal", mediaId:"comboMedia",
+  placeholderId:"bothPlaceholder", nameId:"bothName", factId:"bothFact",
+  images:[{ id:"bothFlagImg", srcFor:flagSrc }, { id:"bothShapeImg", srcFor:shapeSrc }] });
+
+// ---- Quiz ----
+const quizImg = document.getElementById("quizImg");
+const quizPlaceholder = document.getElementById("quizPlaceholder");
+const quizQuestion = document.getElementById("quizQuestion");
+const quizOptions = document.getElementById("quizOptions");
+const quizFact = document.getElementById("quizFact");
+const quizNext = document.getElementById("quizNext");
+let quizAnswer = null, quizAnswered = false;
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function newQuizQuestion() {
+  quizAnswered = false;
+  quizAnswer = randomCountry();
+
+  // Show either a flag or a map shape
+  const useShape = Math.random() < 0.5;
+  quizImg.className = useShape ? "as-shape" : "as-flag";
+  quizImg.src = useShape ? shapeSrc(quizAnswer) : flagSrc(quizAnswer);
+  quizImg.style.display = "block";
+  quizPlaceholder.style.display = "none";
+  quizQuestion.textContent = useShape ? "Which country has this shape? 🤔" : "Which country owns this flag? 🤔";
+
+  // Build 4 options: the answer + 3 different random countries
+  const opts = [quizAnswer];
+  while (opts.length < 4) {
+    const pick = randomCountry();
+    if (!opts.some(o => o.c === pick.c)) opts.push(pick);
+  }
+  shuffle(opts);
+
+  quizOptions.innerHTML = "";
+  opts.forEach(country => {
+    const btn = document.createElement("button");
+    btn.className = "quiz-opt";
+    btn.textContent = country.n;
+    btn.addEventListener("click", () => answerQuiz(country, btn));
+    quizOptions.appendChild(btn);
+  });
+
+  quizFact.textContent = "";
+  quizNext.style.display = "none";
+}
+
+function answerQuiz(country, btn) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const optButtons = quizOptions.querySelectorAll(".quiz-opt");
+  optButtons.forEach(b => { b.disabled = true; if (b.textContent === quizAnswer.n) b.classList.add("correct"); });
+
+  if (country.c === quizAnswer.c) {
+    addStar();
+    bumpStreak();
+    quizFact.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)] +
+      " It's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
+    playCheer();
+    spawnConfetti();
+  } else {
+    btn.classList.add("wrong");
+    resetStreak();
+    quizFact.textContent = "🙂 Not quite — it's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
+    playBuzz();
+  }
+  quizNext.style.display = "";
+}
+
+quizNext.addEventListener("click", newQuizQuestion);
 </script>
 </body>
 </html>
