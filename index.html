@@ -6,176 +6,195 @@
 <title>Limo's World</title>
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --accent: #38bdf8;
-    --accent-2: #f59e0b;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
+    --cream: #fffdf5;
+    --ink: #2b2d42;
+    --red: #ff5d73;
+    --teal: #2ec4b6;
+    --yellow: #ffd23f;
+    --purple: #9b5de5;
+    --blue: #4cc9f0;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
     min-height: 100vh;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: radial-gradient(circle at top, #1e293b, var(--bg));
-    color: var(--text);
+    font-family: "Comic Sans MS", "Chalkboard SE", "Comic Neue", "Baloo 2", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 15% 15%, #fff3a8 0 70px, transparent 71px),
+      linear-gradient(160deg, #8ddcff 0%, #b8a4ff 55%, #ffb3e6 100%);
+    background-attachment: fixed;
+    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 16px;
   }
   .card {
-    background: var(--card);
-    border-radius: 20px;
-    padding: 28px 32px 32px;
+    background: var(--cream);
+    border: 6px solid #fff;
+    border-radius: 30px;
+    padding: 20px 22px 26px;
     width: 100%;
-    max-width: 480px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    max-width: 500px;
+    box-shadow: 0 18px 0 rgba(0,0,0,0.12), 0 24px 50px rgba(0,0,0,0.25);
     text-align: center;
+    position: relative;
   }
   h1 {
-    margin: 0 0 18px;
-    font-size: 1.7rem;
+    margin: 4px 0 16px;
+    font-size: 2.2rem;
     font-weight: 800;
-    letter-spacing: 0.5px;
+    color: var(--purple);
+    text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(155,93,229,0.25);
+    animation: wiggle 3s ease-in-out infinite;
+  }
+  @keyframes wiggle {
+    0%,100% { transform: rotate(-2deg); }
+    50%     { transform: rotate(2deg); }
   }
   .tabs {
     display: flex;
     gap: 8px;
-    background: #0b1220;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 5px;
-    margin-bottom: 22px;
+    margin-bottom: 18px;
   }
   .tab {
     flex: 1;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    padding: 10px;
-    font-size: 0.98rem;
-    font-weight: 600;
-    border-radius: 8px;
+    border: 4px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    padding: 12px 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    border-radius: 18px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    box-shadow: 0 5px 0 var(--ink);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s;
   }
-  .tab.active {
-    background: var(--accent);
-    color: #06283d;
-  }
+  .tab:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .tab.active { background: var(--yellow); }
   .panel { display: none; }
-  .panel.active { display: block; }
+  .panel.active { display: block; animation: pop 0.25s ease; }
+  @keyframes pop {
+    0% { transform: scale(0.96); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   .stage {
-    background: #0b1220;
-    border: 1px solid #334155;
-    border-radius: 14px;
-    height: 240px;
+    background: #fff;
+    border: 5px dashed var(--blue);
+    border-radius: 22px;
+    height: 250px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+    padding: 10px;
   }
-  .stage img {
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 6px;
-  }
-  #flagImg { box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
-  /* mapsicon shapes are white silhouettes on transparent — tint them to the accent colour */
+  .stage img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+  #flagImg { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+  /* mapsicon shapes are white silhouettes — tint them bright purple */
   #shapeImg, .combo-shape {
-    padding: 14px;
-    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6))
-            brightness(0) saturate(100%) invert(72%) sepia(58%)
-            saturate(700%) hue-rotate(170deg) brightness(102%) contrast(98%);
+    padding: 8px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25))
+            brightness(0) saturate(100%) invert(38%) sepia(89%)
+            saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%);
   }
-  /* Both tab: flag and shape side by side */
   .stage-both { padding: 12px; }
   .combo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    width: 100%;
-    height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; width: 100%; height: 100%;
   }
-  .combo img {
-    max-width: 48%;
-    max-height: 100%;
-    border-radius: 6px;
-  }
-  .combo-flag { box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
-  @media (max-width: 380px) {
-    .combo { flex-direction: column; gap: 10px; }
-    .combo img { max-width: 80%; max-height: 48%; }
+  .combo img { max-width: 48%; max-height: 100%; border-radius: 8px; }
+  .combo-flag { box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+  @media (max-width: 400px) {
+    .combo { flex-direction: column; gap: 8px; }
+    .combo img { max-width: 78%; max-height: 48%; }
   }
   .placeholder {
-    color: var(--muted);
-    font-size: 1rem;
-    padding: 0 24px;
+    color: #8a8d9f;
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding: 0 18px;
+    line-height: 1.4;
   }
   .name {
-    min-height: 1.8rem;
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin-bottom: 22px;
-    letter-spacing: 0.3px;
+    min-height: 2.4rem;
+    font-size: 1.9rem;
+    font-weight: 800;
+    margin-bottom: 18px;
+    color: var(--teal);
+  }
+  .name.revealed { animation: boing 0.5s ease; }
+  @keyframes boing {
+    0% { transform: scale(0.3); }
+    60% { transform: scale(1.25); }
+    100% { transform: scale(1); }
   }
   .name.hidden-name {
-    color: var(--muted);
-    font-weight: 500;
-    font-size: 1.05rem;
-    font-style: italic;
+    color: #b7bac7;
+    font-weight: 700;
+    font-size: 1.2rem;
   }
-  .buttons {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   button.action {
-    flex: 1 1 140px;
-    border: none;
-    border-radius: 12px;
-    padding: 14px 18px;
-    font-size: 1rem;
-    font-weight: 600;
+    flex: 1 1 150px;
+    border: 4px solid var(--ink);
+    border-radius: 20px;
+    padding: 16px 14px;
+    font-family: inherit;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--ink);
     cursor: pointer;
-    transition: transform 0.08s ease, opacity 0.2s ease;
+    box-shadow: 0 6px 0 var(--ink);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s;
   }
-  button.action:active { transform: scale(0.97); }
-  button.action:disabled { opacity: 0.45; cursor: not-allowed; }
-  .draw-btn { background: var(--accent); color: #06283d; }
-  .reveal-btn { background: var(--accent-2); color: #3a2400; }
+  button.action:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+  button.action:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 6px 0 var(--ink); transform: none; }
+  .draw-btn { background: var(--yellow); }
+  .reveal-btn { background: var(--red); color: #fff; }
   .count {
-    margin-top: 18px;
-    font-size: 0.8rem;
-    color: var(--muted);
+    margin-top: 16px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--purple);
+  }
+  /* confetti */
+  .confetti {
+    position: fixed;
+    top: -40px;
+    font-size: 1.6rem;
+    pointer-events: none;
+    z-index: 999;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; }
   }
 </style>
 </head>
 <body>
   <div class="card">
-    <h1>🌍 Limo's World</h1>
+    <h1>🌍 Limo's World 🚀</h1>
 
     <div class="tabs">
-      <button class="tab active" data-tab="flag">Flags</button>
-      <button class="tab" data-tab="shape">Map Shapes</button>
-      <button class="tab" data-tab="both">Both</button>
+      <button class="tab active" data-tab="flag">🚩 Flags</button>
+      <button class="tab" data-tab="shape">🗺️ Shapes</button>
+      <button class="tab" data-tab="both">✨ Both</button>
     </div>
 
     <!-- FLAGS TAB -->
     <div class="panel active" id="panel-flag">
       <div class="stage">
         <img id="flagImg" alt="" style="display:none;">
-        <div class="placeholder" id="flagPlaceholder">Press <b>Flag</b> for a random country's flag</div>
+        <div class="placeholder" id="flagPlaceholder">Tap the big button to see a mystery flag! 🚩</div>
       </div>
-      <div class="name hidden-name" id="flagName">— press Reveal to see the country —</div>
+      <div class="name hidden-name" id="flagName">🙈 Tap Who is it?</div>
       <div class="buttons">
-        <button class="action draw-btn" id="flagBtn">Flag</button>
-        <button class="action reveal-btn" id="flagReveal" disabled>Reveal</button>
+        <button class="action draw-btn" id="flagBtn">🎲 New Flag!</button>
+        <button class="action reveal-btn" id="flagReveal" disabled>🙈 Who is it?</button>
       </div>
     </div>
 
@@ -183,12 +202,12 @@
     <div class="panel" id="panel-shape">
       <div class="stage">
         <img id="shapeImg" alt="" style="display:none;">
-        <div class="placeholder" id="shapePlaceholder">Press <b>Shape</b> for a random country's outline on the map</div>
+        <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country shape! 🗺️</div>
       </div>
-      <div class="name hidden-name" id="shapeName">— press Reveal to see the country —</div>
+      <div class="name hidden-name" id="shapeName">🙈 Tap Who is it?</div>
       <div class="buttons">
-        <button class="action draw-btn" id="shapeBtn">Shape</button>
-        <button class="action reveal-btn" id="shapeReveal" disabled>Reveal</button>
+        <button class="action draw-btn" id="shapeBtn">🎲 New Shape!</button>
+        <button class="action reveal-btn" id="shapeReveal" disabled>🙈 Who is it?</button>
       </div>
     </div>
 
@@ -199,12 +218,12 @@
           <img id="bothFlagImg" class="combo-flag" alt="">
           <img id="bothShapeImg" class="combo-shape" alt="">
         </div>
-        <div class="placeholder" id="bothPlaceholder">Press <b>Country</b> for a random flag <i>and</i> map shape together</div>
+        <div class="placeholder" id="bothPlaceholder">Tap to see a flag AND a shape together! ✨</div>
       </div>
-      <div class="name hidden-name" id="bothName">— press Reveal to see the country —</div>
+      <div class="name hidden-name" id="bothName">🙈 Tap Who is it?</div>
       <div class="buttons">
-        <button class="action draw-btn" id="bothBtn">Country</button>
-        <button class="action reveal-btn" id="bothReveal" disabled>Reveal</button>
+        <button class="action draw-btn" id="bothBtn">🎲 Surprise!</button>
+        <button class="action reveal-btn" id="bothReveal" disabled>🙈 Who is it?</button>
       </div>
     </div>
 
@@ -264,9 +283,40 @@ const countries = [
   {n:"Vietnam",c:"vn"},{n:"Yemen",c:"ye"},{n:"Zambia",c:"zm"},{n:"Zimbabwe",c:"zw"}
 ];
 
-const HIDDEN_TEXT = "— press Reveal to see the country —";
+const HIDDEN_TEXT = "🙈 Tap Who is it?";
 
-document.getElementById("count").textContent = countries.length + " countries in the deck";
+document.getElementById("count").textContent = "🎉 " + countries.length + " countries to explore!";
+
+// ---- Fun sounds (no files needed) ----
+let audioCtx = null;
+function beep(freq, start, dur, type = "sine", gain = 0.15) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const t = audioCtx.currentTime + start;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur);
+}
+function playPop()   { beep(520, 0, 0.12, "triangle", 0.18); }
+function playCheer() { [523, 659, 784, 1046].forEach((f, i) => beep(f, i * 0.09, 0.18, "square", 0.12)); }
+
+// ---- Confetti ----
+const CONFETTI = ["🎉","⭐","🌟","🎊","✨","🏆","🥳","🌈"];
+function spawnConfetti() {
+  for (let i = 0; i < 24; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti";
+    el.textContent = CONFETTI[Math.floor(Math.random() * CONFETTI.length)];
+    el.style.left = Math.random() * 100 + "vw";
+    const dur = 1.6 + Math.random() * 1.4;
+    el.style.animationDuration = dur + "s";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), dur * 1000 + 100);
+  }
+}
 
 // ---- Tab switching ----
 document.querySelectorAll(".tab").forEach(tab => {
@@ -287,8 +337,6 @@ const flagSrc  = country => "https://flagcdn.com/w640/" + country.c + ".png";
 const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png";
 
 // ---- Generic wiring for a draw/reveal panel ----
-// `images` is a list of { el, srcFor } pairs; `mediaId` is the element shown
-// once a country is drawn (a single <img> or a wrapper containing several).
 function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId }) {
   const drawBtn = document.getElementById(drawId);
   const revealBtn = document.getElementById(revealId);
@@ -304,16 +352,22 @@ function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId }
     media.style.display = "";
     placeholder.style.display = "none";
 
-    // Re-hide the name every time a new country is drawn
+    // Hide the name again every time a new country is drawn
     nameEl.textContent = HIDDEN_TEXT;
     nameEl.classList.add("hidden-name");
+    nameEl.classList.remove("revealed");
     revealBtn.disabled = false;
+    playPop();
   });
 
   revealBtn.addEventListener("click", () => {
     if (!current) return;
-    nameEl.textContent = current.n;
+    nameEl.textContent = "🎉 " + current.n + "!";
     nameEl.classList.remove("hidden-name");
+    void nameEl.offsetWidth;       // restart the boing animation
+    nameEl.classList.add("revealed");
+    playCheer();
+    spawnConfetti();
   });
 }
 
