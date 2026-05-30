@@ -1,7 +1,7 @@
 /* Limo's World service worker — installable + full offline support.
    On the first (online) visit it downloads every flag and map shape so the
    whole app works with no connection afterwards. */
-const CACHE = "limos-world-v3";
+const CACHE = "limos-world-v4";
 
 const SHELL = [
   "./",
