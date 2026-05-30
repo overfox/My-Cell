@@ -144,18 +144,20 @@
   .album-head { font-size: 0.95rem; font-weight: 800; color: var(--purple); margin-bottom: 6px; flex: 0 0 auto; }
   .album-grid {
     flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px;
-    padding: 6px; background: #fff; border: 4px dashed var(--blue); border-radius: 16px; margin-bottom: 8px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    grid-auto-rows: 84px; gap: 8px; align-content: start;
+    padding: 8px; background: #fff; border: 4px dashed var(--blue); border-radius: 16px; margin-bottom: 8px;
   }
   .sticker {
-    aspect-ratio: 1 / 1; border-radius: 10px; border: 2px solid #e3e3ef; background: #f4f4fa;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 3px; position: relative;
+    border-radius: 12px; border: 2px solid #e3e3ef; background: #f4f4fa;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    overflow: hidden; padding: 6px 4px; position: relative;
   }
   .sticker.got { border-color: var(--green); background: #eafff0; }
-  .sticker.got::after { content: "⭐"; position: absolute; top: 1px; right: 2px; font-size: 0.7rem; }
-  .sticker img { width: 100%; max-height: 58%; object-fit: contain; border-radius: 3px; filter: grayscale(1); opacity: 0.4; transition: filter 0.2s, opacity 0.2s; }
+  .sticker.got::after { content: "⭐"; position: absolute; top: 2px; right: 3px; font-size: 0.8rem; }
+  .sticker img { width: 84%; height: 44px; object-fit: contain; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); filter: grayscale(1); opacity: 0.4; transition: filter 0.2s, opacity 0.2s; }
   .sticker.got img { filter: none; opacity: 1; }
-  .sticker .nm { font-size: 0.5rem; font-weight: 800; line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: #9aa0b0; }
+  .sticker .nm { font-size: 0.56rem; font-weight: 800; line-height: 1.05; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: #9aa0b0; }
   .sticker.got .nm { color: var(--ink); }
 
   .toast {
@@ -181,7 +183,7 @@
 
     <div class="tabs">
       <button class="tab active" data-tab="flag"><span class="ico">🚩</span><span class="lbl">Flags</span></button>
-      <button class="tab" data-tab="shape"><span class="ico">🗺️</span><span class="lbl">Shapes</span></button>
+      <button class="tab" data-tab="shape"><span class="ico">🗺️</span><span class="lbl">Maps</span></button>
       <button class="tab" data-tab="both"><span class="ico">✨</span><span class="lbl">Both</span></button>
       <button class="tab" data-tab="quiz"><span class="ico">🧠</span><span class="lbl">Quiz</span></button>
       <button class="tab" data-tab="album"><span class="ico">📔</span><span class="lbl">Album</span></button>
@@ -208,12 +210,12 @@
       <div class="panel" id="panel-shape">
         <div class="stage">
           <img id="shapeImg" alt="" style="display:none;">
-          <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country shape! 🗺️</div>
+          <div class="placeholder" id="shapePlaceholder">Tap to see a mystery country map! 🗺️</div>
         </div>
         <div class="name hidden-name" id="shapeName">🙈 Tap Who is it?</div>
         <div class="fact" id="shapeFact"></div>
         <div class="buttons">
-          <button class="action draw-btn" id="shapeBtn">🎲 New Shape!</button>
+          <button class="action draw-btn" id="shapeBtn">🎲 New Map!</button>
           <button class="action reveal-btn" id="shapeReveal" disabled>🙈 Who is it?</button>
         </div>
       </div>
@@ -693,7 +695,7 @@ function newQuizQuestion() {
   quizImg.className = useShape ? "as-shape" : "as-flag";
   quizImg.src = useShape ? shapeSrc(quizAnswer) : flagSrc(quizAnswer);
   quizImg.style.display = "block"; quizPlaceholder.style.display = "none";
-  quizQuestion.textContent = useShape ? "Which country has this shape? 🤔" : "Which country owns this flag? 🤔";
+  quizQuestion.textContent = useShape ? "Which country is this a map of? 🤔" : "Which country owns this flag? 🤔";
 
   const opts = [quizAnswer];
   while (opts.length < 4) {
