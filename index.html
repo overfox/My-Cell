@@ -172,8 +172,9 @@
   /* ===== Atlas game ===== */
   #panel-atlas { overflow: hidden; }
   .atlas-view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-  .atlas-world { flex: 1 1 auto; min-height: 0; background: #eaf6ff; border: 4px dashed var(--blue); border-radius: 16px; padding: 6px; margin-bottom: 8px; }
-  .atlas-world svg, .mini-world svg, .big-cont svg { width: 100%; height: 100%; display: block; }
+  .atlas-world { flex: 1 1 auto; min-height: 140px; position: relative; background: #eaf6ff; border: 4px dashed var(--blue); border-radius: 16px; padding: 6px; margin-bottom: 8px; }
+  .mini-world svg { width: 100%; height: 100%; display: block; }
+  .atlas-world svg, .big-cont svg { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); display: block; }
   .cpath { fill: #dfe2ee; stroke: #fff; stroke-width: 0.6; }
   .world-select .deck { cursor: pointer; }
   .world-select .deck[data-cont="Africa"] { fill: #f4a259; }
@@ -202,7 +203,7 @@
   .atlas-headinfo .prog { color: var(--ink); font-size: 1.1rem; }
   .target-shape { width: 62px; height: 52px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px solid var(--blue); border-radius: 8px; font-size: 1.5rem; overflow: hidden; }
   .target-shape img { max-width: 100%; max-height: 100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)) brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%); }
-  .big-cont { flex: 1 1 auto; min-height: 0; background: #eaf6ff; border: 4px dashed var(--blue); border-radius: 16px; padding: 6px; margin-bottom: 6px; }
+  .big-cont { flex: 1 1 auto; min-height: 140px; position: relative; background: #eaf6ff; border: 4px dashed var(--blue); border-radius: 16px; padding: 6px; margin-bottom: 6px; }
   .big-cont .cpath { stroke: #9aa0b0; stroke-width: 0.4; }
   #atlasOptions { flex: 0 0 auto; }
   .atlas-opt { border: 3px solid var(--ink); background: #fff; border-radius: 13px; padding: 6px 8px; font-family: inherit; font-weight: 800; font-size: 0.8rem; cursor: pointer; box-shadow: 0 4px 0 var(--ink); display: flex; align-items: center; gap: 7px; text-align: left; }
