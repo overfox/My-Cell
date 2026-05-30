@@ -149,12 +149,14 @@
   }
   .sticker {
     aspect-ratio: 1 / 1; border-radius: 10px; border: 2px solid #e3e3ef; background: #f4f4fa;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 3px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 3px; position: relative;
   }
   .sticker.got { border-color: var(--green); background: #eafff0; }
-  .sticker img { width: 100%; max-height: 60%; object-fit: contain; border-radius: 3px; }
-  .sticker .nm { font-size: 0.5rem; font-weight: 800; line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .sticker .lock { font-size: 1.4rem; }
+  .sticker.got::after { content: "⭐"; position: absolute; top: 1px; right: 2px; font-size: 0.7rem; }
+  .sticker img { width: 100%; max-height: 58%; object-fit: contain; border-radius: 3px; filter: grayscale(1); opacity: 0.4; transition: filter 0.2s, opacity 0.2s; }
+  .sticker.got img { filter: none; opacity: 1; }
+  .sticker .nm { font-size: 0.5rem; font-weight: 800; line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; color: #9aa0b0; }
+  .sticker.got .nm { color: var(--ink); }
 
   .toast {
     position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
@@ -585,18 +587,14 @@ function buildAlbum() {
     const cell = document.createElement("div");
     cell.className = "sticker" + (collected.has(country.c) ? " got" : "");
     cell.dataset.code = country.c;
-    if (collected.has(country.c)) {
-      cell.innerHTML = '<img src="' + flagSrc(country) + '" alt=""><span class="nm">' + country.n + '</span>';
-    } else {
-      cell.innerHTML = '<span class="lock">❓</span>';
-    }
+    cell.innerHTML = '<img src="' + flagSrc(country) + '" alt="" loading="lazy"><span class="nm">' + country.n + '</span>';
     albumGrid.appendChild(cell);
   });
   albumBuilt = true;
   updateAlbumHead();
 }
 function updateAlbumHead() {
-  albumHead.textContent = "📔 My Stickers: " + collected.size + " / " + countries.length;
+  albumHead.textContent = "📔 Stickers lit up: " + collected.size + " / " + countries.length + " — explore to colour them in!";
 }
 function collect(country) {
   if (collected.has(country.c)) return;
@@ -605,7 +603,7 @@ function collect(country) {
   updateAlbumHead();
   if (albumBuilt) {
     const cell = albumGrid.querySelector('.sticker[data-code="' + country.c + '"]');
-    if (cell) { cell.classList.add("got"); cell.innerHTML = '<img src="' + flagSrc(country) + '" alt=""><span class="nm">' + country.n + '</span>'; }
+    if (cell) cell.classList.add("got");
   }
 }
 
