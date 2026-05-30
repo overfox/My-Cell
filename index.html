@@ -156,6 +156,13 @@
   .sticker .nm { font-size: 0.5rem; font-weight: 800; line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .sticker .lock { font-size: 1.4rem; }
 
+  .toast {
+    position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 14px;
+    font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 90vw;
+  }
+  .toast.show { opacity: 0.96; }
   .confetti { position: fixed; top: -40px; font-size: 1.6rem; pointer-events: none; z-index: 999; animation: fall linear forwards; }
   @keyframes fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; } }
 </style>
@@ -177,6 +184,8 @@
       <button class="tab" data-tab="quiz"><span class="ico">🧠</span><span class="lbl">Quiz</span></button>
       <button class="tab" data-tab="album"><span class="ico">📔</span><span class="lbl">Album</span></button>
     </div>
+
+    <div id="toast" class="toast"></div>
 
     <div class="panels">
       <!-- FLAGS -->
@@ -563,8 +572,8 @@ function spawnConfetti() {
 }
 
 function randomCountry() { return countries[Math.floor(Math.random() * countries.length)]; }
-const flagSrc  = country => "https://flagcdn.com/w640/" + country.c + ".png";
-const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/1024.png";
+const flagSrc  = country => "https://flagcdn.com/w320/" + country.c + ".png";
+const shapeSrc = country => "https://cdn.jsdelivr.net/gh/djaiss/mapsicon@master/all/" + country.c + "/512.png";
 
 // ---- Sticker album ----
 const albumGrid = document.getElementById("albumGrid");
@@ -731,10 +740,25 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 loadSave();
 renderScore();
 
+// ---- Friendly toast ----
+function toast(msg, ms = 3000) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), ms);
+}
+
 // ---- Make it installable / work offline ----
 if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data && e.data.type === "offline-ready") toast("✅ Ready to play offline!");
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      // First-ever install: we're about to download every flag and shape.
+      if (reg.installing && !navigator.serviceWorker.controller) {
+        toast("📥 Saving the whole world for offline… hang tight!", 6000);
+      }
+    }).catch(() => {});
   });
 }
 </script>
