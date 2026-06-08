@@ -235,8 +235,11 @@
     display: flex; align-items: center; justify-content: center;
     transition: left 0.16s ease, top 0.16s ease, transform 0.16s ease, opacity 0.2s ease;
   }
-  .slide-tile img { width: 100%; height: 100%; object-fit: cover; }
-  .slide-tile.pop { animation: tilePop 0.25s ease forwards; }
+  .slide-tile img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .slide-tile.sel { border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow), 0 2px 6px rgba(0,0,0,0.6); z-index: 3; }
+  .slide-tile.wig { animation: tileWig 0.3s ease; }
+  @keyframes tileWig { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .slide-tile.pop { animation: tilePop 0.25s ease forwards; z-index: 4; }
   @keyframes tilePop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(0); opacity: 0; } }
   .slide-win {
     position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -374,7 +377,6 @@
         <div id="slideBoard" class="slide-board"></div>
         <div class="buttons">
           <button class="action draw-btn" id="slideNew">🔀 New Board</button>
-          <button class="action reveal-btn" id="slideUndo" disabled>↩️ Undo</button>
         </div>
       </div>
     </div>
@@ -1084,22 +1086,25 @@ document.getElementById("zoomIn").addEventListener("click", () => zoomBy(1));
 document.getElementById("zoomOut").addEventListener("click", () => zoomBy(-1));
 atlasLoad();
 
-/* ===== Slide (flag mahjong): swipe a row/column, tiles slide until blocked,
-   identical flags that collide vanish. Clear the board to win. ===== */
+/* ===== Slide (flag mahjong) =====
+   Board starts completely full (domino-tiled = always solvable). Pick a tile
+   and a swipe direction: it slides to the first tile it meets that way. If that
+   tile is the same flag, both pop; otherwise the tile snaps back. ===== */
 (function () {
-  const N = 6;                 // grid size
-  const PAIRS = 12;            // 12 pairs = 24 tiles on a 36-cell board
+  const N = 6;
   const GAP = 1.6;             // % gap between tiles
   const board = document.getElementById("slideBoard");
   const head = document.getElementById("slideHead");
   const newBtn = document.getElementById("slideNew");
-  const undoBtn = document.getElementById("slideUndo");
+  const undoBtn = document.getElementById("slideUndo") || { disabled: true, addEventListener: function () {} };
   if (!board) return;
 
   let SG = [];                 // SG[r][c] = { code, el } | null
-  let busy = false, undoSnap = null;
-
+  let busy = false;
+  let undoFn = null;
+  const DIRS = { left: [0, -1], right: [0, 1], up: [-1, 0], down: [1, 0] };
   const cellPct = 100 / N;
+
   function place(el, r, c) {
     el.style.left = (c * cellPct + GAP / 2) + "%";
     el.style.top = (r * cellPct + GAP / 2) + "%";
@@ -1111,113 +1116,132 @@ atlasLoad();
     el.className = "slide-tile";
     el.innerHTML = '<img src="' + flagSrc({ c: code }) + '" alt="">';
     place(el, r, c);
+    el.addEventListener("click", () => selectTile(r, c));
     board.appendChild(el);
-    return { code, el };
+    return { code, el, r, c };
   }
-
   function tilesLeft() { let n = 0; for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (SG[r][c]) n++; return n; }
   function updateHead() {
     const n = tilesLeft();
-    head.textContent = n === 0 ? "🏆 Cleared! You matched every flag!" : "🀄 " + n + " flags left — swipe to slide matches together!";
+    head.textContent = n === 0 ? "🏆 Cleared! You matched every flag!"
+      : "🀄 " + n + " flags left — slide a flag into its twin to pop them!";
   }
-
-  function snapshot() {
-    const s = [];
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (SG[r][c]) s.push({ code: SG[r][c].code, r, c });
-    return s;
-  }
-
   function clearBoard() {
     board.querySelectorAll(".slide-tile").forEach((e) => e.remove());
     const win = board.querySelector(".slide-win"); if (win) win.remove();
   }
 
+  // Random domino tiling: each pair is two adjacent cells, a distinct flag each.
+  function dominoTiling() {
+    const g = Array.from({ length: N }, () => Array(N).fill(-1));
+    let id = 0;
+    function next() { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (g[r][c] < 0) return [r, c]; return null; }
+    function rec() {
+      const cell = next(); if (!cell) return true;
+      const [r, c] = cell;
+      const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+      for (let i = dirs.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [dirs[i], dirs[j]] = [dirs[j], dirs[i]]; }
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < N && nc >= 0 && nc < N && g[nr][nc] < 0) {
+          g[r][c] = id; g[nr][nc] = id; id++;
+          if (rec()) return true;
+          id--; g[r][c] = -1; g[nr][nc] = -1;
+        }
+      }
+      return false;
+    }
+    rec();
+    return g;  // g[r][c] = domino id (0..17)
+  }
+
   function newBoard() {
     clearBoard();
     SG = Array.from({ length: N }, () => Array(N).fill(null));
-    // pick PAIRS distinct flags
-    const pool = countries.map((c) => c.c);
-    shuffle(pool);
-    const codes = [];
-    for (let i = 0; i < PAIRS; i++) { codes.push(pool[i]); codes.push(pool[i]); }
-    // place into random distinct cells
-    const cells = [];
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) cells.push([r, c]);
-    shuffle(cells);
-    codes.forEach((code, i) => { const [r, c] = cells[i]; SG[r][c] = makeTile(code, r, c); });
-    undoSnap = null; undoBtn.disabled = true;
+    const g = dominoTiling();
+    const nDom = Math.max(...g.flat()) + 1;
+    const pool = countries.map((c) => c.c); shuffle(pool);
+    const flagOf = {}; for (let i = 0; i < nDom; i++) flagOf[i] = pool[i];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) SG[r][c] = makeTile(flagOf[g[r][c]], r, c);
+    selected = null; undoFn = null; undoBtn.disabled = true;
     updateHead();
   }
 
-  function fromSnapshot(s) {
-    clearBoard();
-    SG = Array.from({ length: N }, () => Array(N).fill(null));
-    s.forEach((t) => { SG[t.r][t.c] = makeTile(t.code, t.r, t.c); });
-    updateHead();
-  }
-
-  // Coordinate lists per direction, ordered from the wall the tiles slide toward.
-  function lines(dir) {
-    const out = [];
-    for (let i = 0; i < N; i++) {
-      const line = [];
-      for (let j = 0; j < N; j++) {
-        if (dir === "left") line.push([i, j]);
-        else if (dir === "right") line.push([i, N - 1 - j]);
-        else if (dir === "up") line.push([j, i]);
-        else line.push([N - 1 - j, i]); // down
-      }
-      out.push(line);
+  // First tile encountered from (r,c) going in dir (skips empty cells).
+  function firstTile(r, c, dir) {
+    const [dr, dc] = DIRS[dir];
+    let nr = r + dr, nc = c + dc;
+    while (nr >= 0 && nr < N && nc >= 0 && nc < N) {
+      if (SG[nr][nc]) return [nr, nc];
+      nr += dr; nc += dc;
     }
-    return out;
+    return null;
+  }
+  // Cell just before the target (where the sliding tile would rest if it didn't pop).
+  function restCell(r, c, dir, tr, tc) {
+    const [dr, dc] = DIRS[dir];
+    return [tr - dr, tc - dc];
   }
 
-  function move(dir) {
-    if (busy) return;
-    const newSG = Array.from({ length: N }, () => Array(N).fill(null));
-    const moves = [];   // { obj, r, c } survivors
-    const kills = [];   // { a, b, r, c } colliding pairs
-    let changed = false;
+  let selected = null;  // {r,c}
+  function highlightSel(on) {
+    if (!selected) return;
+    const t = SG[selected.r] && SG[selected.r][selected.c];
+    if (t) t.el.classList.toggle("sel", on);
+  }
+  function selectTile(r, c) {
+    if (busy || !SG[r][c]) return;
+    highlightSel(false);
+    selected = { r, c };
+    highlightSel(true);
+  }
 
-    lines(dir).forEach((coords) => {
-      const objs = [];
-      coords.forEach(([r, c]) => { if (SG[r][c]) objs.push({ obj: SG[r][c], r, c }); });
-      const res = [];
-      objs.forEach((o) => {
-        if (res.length && res[res.length - 1].obj.code === o.obj.code) {
-          const p = res.pop();
-          const [kr, kc] = coords[res.length];
-          kills.push({ a: p.obj, b: o.obj, r: kr, c: kc });
-          changed = true;
-        } else res.push(o);
-      });
-      res.forEach((o, idx) => {
-        const [nr, nc] = coords[idx];
-        if (o.r !== nr || o.c !== nc) changed = true;
-        newSG[nr][nc] = o.obj;
-        moves.push({ obj: o.obj, r: nr, c: nc });
-      });
-    });
+  function attempt(dir) {
+    if (busy || !selected) return;
+    const { r, c } = selected;
+    const t = SG[r][c]; if (!t) return;
+    const f = firstTile(r, c, dir);
+    if (!f) return;                         // nothing in that direction
+    const [tr, tc] = f;
+    const isMatch = SG[tr][tc].code === t.code;
+    const [rr, rc] = restCell(r, c, dir, tr, tc);
 
-    if (!changed) return;
-
-    undoSnap = snapshot(); undoBtn.disabled = false;
-    busy = true;
-    SG = newSG;
-
-    moves.forEach((m) => place(m.obj.el, m.r, m.c));
-    kills.forEach((k) => { place(k.a.el, k.r, k.c); place(k.b.el, k.r, k.c); });
-
-    setTimeout(() => {
-      kills.forEach((k) => { k.a.el.classList.add("pop"); k.b.el.classList.add("pop"); });
+    if (isMatch) {
+      // slide onto the rest cell, then pop both
+      busy = true;
+      const other = SG[tr][tc];
+      SG[r][c] = null;
+      highlightSel(false); selected = null;
+      const prevR = r, prevC = c;
+      place(t.el, rr, rc); t.r = rr; t.c = rc;
+      undoFn = null; undoBtn.disabled = true;   // matched moves aren't undone (they cleared)
       setTimeout(() => {
-        kills.forEach((k) => { k.a.el.remove(); k.b.el.remove(); });
-        busy = false;
-        updateHead();
-        if (tilesLeft() === 0) winGame();
-        else if (kills.length) { playCheer(); }
+        t.el.classList.add("pop"); other.el.classList.add("pop");
+        setTimeout(() => {
+          t.el.remove(); other.el.remove();
+          SG[tr][tc] = null;
+          busy = false;
+          updateHead();
+          if (tilesLeft() === 0) winGame(); else playCheer();
+        }, 260);
+      }, 170);
+    } else {
+      // no match: slide up against the blocker, then snap back
+      if (rr === r && rc === c) { wiggle(t.el); return; }  // already adjacent, nowhere to go
+      busy = true;
+      undoFn = null; undoBtn.disabled = true;
+      place(t.el, rr, rc);
+      playBuzz();
+      setTimeout(() => {
+        place(t.el, r, c);                 // snap back
+        setTimeout(() => { busy = false; }, 170);
       }, 260);
-    }, 170);
+    }
+  }
+
+  function wiggle(el) {
+    el.classList.remove("wig"); void el.offsetWidth; el.classList.add("wig");
+    playBuzz();
   }
 
   function winGame() {
@@ -1229,24 +1253,36 @@ atlasLoad();
     spawnConfetti(); playCheer();
   }
 
-  // Swipe / arrow input
-  let sx = 0, sy = 0, tracking = false;
-  board.addEventListener("pointerdown", (e) => { tracking = true; sx = e.clientX; sy = e.clientY; });
+  // Swipe: pick the tile under the start point, then slide in the swipe direction.
+  let sx = 0, sy = 0, startCell = null, tracking = false;
+  function cellFromPoint(clientX, clientY) {
+    const rect = board.getBoundingClientRect();
+    const c = Math.floor(((clientX - rect.left) / rect.width) * N);
+    const r = Math.floor(((clientY - rect.top) / rect.height) * N);
+    if (r < 0 || r >= N || c < 0 || c >= N) return null;
+    return { r, c };
+  }
+  board.addEventListener("pointerdown", (e) => {
+    tracking = true; sx = e.clientX; sy = e.clientY;
+    startCell = cellFromPoint(e.clientX, e.clientY);
+  });
   board.addEventListener("pointerup", (e) => {
     if (!tracking) return; tracking = false;
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) < 18 && Math.abs(dy) < 18) return;
-    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? "right" : "left");
-    else move(dy > 0 ? "down" : "up");
+    if (Math.abs(dx) < 16 && Math.abs(dy) < 16) return;   // a tap (handled by tile click)
+    if (startCell && SG[startCell.r] && SG[startCell.r][startCell.c]) selectTile(startCell.r, startCell.c);
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+    attempt(dir);
   });
+  // Arrow keys move the selected tile.
   window.addEventListener("keydown", (e) => {
     if (!document.getElementById("panel-slide").classList.contains("active")) return;
     const k = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" }[e.key];
-    if (k) { e.preventDefault(); move(k); }
+    if (k) { e.preventDefault(); attempt(k); }
   });
 
   newBtn.addEventListener("click", newBoard);
-  undoBtn.addEventListener("click", () => { if (undoSnap) { fromSnapshot(undoSnap); undoSnap = null; undoBtn.disabled = true; } });
+  undoBtn.addEventListener("click", () => { if (undoFn) undoFn(); });
 
   let slideInited = false;
   document.querySelector('.tab[data-tab="slide"]').addEventListener("click", () => {
