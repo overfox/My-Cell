@@ -233,7 +233,8 @@
     position: absolute; box-sizing: border-box; border-radius: 8px; overflow: hidden;
     background: #fff; border: 2px solid #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
     display: flex; align-items: center; justify-content: center;
-    transition: left 0.16s ease, top 0.16s ease, transform 0.16s ease, opacity 0.2s ease;
+    transition: left 0.22s cubic-bezier(.22,.61,.36,1), top 0.22s cubic-bezier(.22,.61,.36,1), transform 0.18s ease, opacity 0.2s ease;
+    will-change: left, top;
   }
   .slide-tile img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   .slide-tile.sel { border-color: var(--yellow); box-shadow: 0 0 0 3px var(--yellow), 0 2px 6px rgba(0,0,0,0.6); z-index: 3; }
@@ -1131,34 +1132,65 @@ atlasLoad();
     const win = board.querySelector(".slide-win"); if (win) win.remove();
   }
 
-  // Random domino tiling: each pair is two adjacent cells, a distinct flag each.
-  function dominoTiling() {
+  // Empty cell-pairs in the same row/col with only empties between them — these
+  // are the valid spots to "un-pop" a pair when building the board in reverse.
+  function colinearEmptyPairs(g) {
+    const res = [];
+    for (let r = 0; r < N; r++) {
+      const e = []; for (let c = 0; c < N; c++) if (g[r][c] < 0) e.push(c);
+      for (let i = 0; i < e.length; i++) for (let j = i + 1; j < e.length; j++) {
+        let ok = true; for (let c = e[i] + 1; c < e[j]; c++) if (g[r][c] >= 0) { ok = false; break; }
+        if (ok) res.push([[r, e[i]], [r, e[j]], e[j] - e[i]]);
+      }
+    }
+    for (let c = 0; c < N; c++) {
+      const e = []; for (let r = 0; r < N; r++) if (g[r][c] < 0) e.push(r);
+      for (let i = 0; i < e.length; i++) for (let j = i + 1; j < e.length; j++) {
+        let ok = true; for (let r = e[i] + 1; r < e[j]; r++) if (g[r][c] >= 0) { ok = false; break; }
+        if (ok) res.push([[e[i], c], [e[j], c], e[j] - e[i]]);
+      }
+    }
+    return res;
+  }
+
+  // Reverse-construct a guaranteed-solvable full board, preferring far-apart
+  // pairs so only a few end up adjacent. Returns { g, adj } or null.
+  function buildBoardOnce(cap) {
     const g = Array.from({ length: N }, () => Array(N).fill(-1));
-    let id = 0;
-    function next() { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (g[r][c] < 0) return [r, c]; return null; }
+    let id = 0, nodes = 0; const dist = [];
+    function empty() { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (g[r][c] < 0) return true; return false; }
     function rec() {
-      const cell = next(); if (!cell) return true;
-      const [r, c] = cell;
-      const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-      for (let i = dirs.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [dirs[i], dirs[j]] = [dirs[j], dirs[i]]; }
-      for (const [dr, dc] of dirs) {
-        const nr = r + dr, nc = c + dc;
-        if (nr >= 0 && nr < N && nc >= 0 && nc < N && g[nr][nc] < 0) {
-          g[r][c] = id; g[nr][nc] = id; id++;
-          if (rec()) return true;
-          id--; g[r][c] = -1; g[nr][nc] = -1;
-        }
+      if (++nodes > cap) return "CAP";
+      if (!empty()) return true;
+      let ps = colinearEmptyPairs(g); if (ps.length === 0) return false;
+      ps.sort((a, b) => (b[2] - a[2]) + (Math.random() - 0.5) * 3);   // prefer far apart, with noise
+      for (const [[r1, c1], [r2, c2], d] of ps) {
+        g[r1][c1] = id; g[r2][c2] = id; dist.push(d); id++;
+        const r = rec(); if (r === true) return true; if (r === "CAP") return "CAP";
+        id--; dist.pop(); g[r1][c1] = -1; g[r2][c2] = -1;
       }
       return false;
     }
-    rec();
-    return g;  // g[r][c] = domino id (0..17)
+    if (rec() !== true) return null;
+    return { g, adj: dist.filter((d) => d === 1).length };
+  }
+
+  // Generate a board with 1-3 already-touching pairs (the rest spread out).
+  function makeSolvableBoard() {
+    let best = null; const t0 = Date.now();
+    while (Date.now() - t0 < 700) {
+      const r = buildBoardOnce(6000);
+      if (!r) continue;
+      if (r.adj >= 1 && r.adj <= 3) return r.g;
+      if (!best) best = r;
+    }
+    return best ? best.g : null;
   }
 
   function newBoard() {
     clearBoard();
     SG = Array.from({ length: N }, () => Array(N).fill(null));
-    const g = dominoTiling();
+    const g = makeSolvableBoard() || makeSolvableBoard();
     const nDom = Math.max(...g.flat()) + 1;
     const pool = countries.map((c) => c.c); shuffle(pool);
     const flagOf = {}; for (let i = 0; i < nDom; i++) flagOf[i] = pool[i];
@@ -1206,15 +1238,17 @@ atlasLoad();
     const isMatch = SG[tr][tc].code === t.code;
     const [rr, rc] = restCell(r, c, dir, tr, tc);
 
+    // Slide time scales a little with distance for a natural feel.
+    const steps = Math.abs(tr - r) + Math.abs(tc - c);
+    const slideMs = Math.min(360, 140 + steps * 45);
+
     if (isMatch) {
       // slide onto the rest cell, then pop both
       busy = true;
       const other = SG[tr][tc];
       SG[r][c] = null;
       highlightSel(false); selected = null;
-      const prevR = r, prevC = c;
       place(t.el, rr, rc); t.r = rr; t.c = rc;
-      undoFn = null; undoBtn.disabled = true;   // matched moves aren't undone (they cleared)
       setTimeout(() => {
         t.el.classList.add("pop"); other.el.classList.add("pop");
         setTimeout(() => {
@@ -1223,19 +1257,18 @@ atlasLoad();
           busy = false;
           updateHead();
           if (tilesLeft() === 0) winGame(); else playCheer();
-        }, 260);
-      }, 170);
+        }, 240);
+      }, slideMs);
     } else {
-      // no match: slide up against the blocker, then snap back
+      // no match: slide up against the blocker, then glide back
       if (rr === r && rc === c) { wiggle(t.el); return; }  // already adjacent, nowhere to go
       busy = true;
-      undoFn = null; undoBtn.disabled = true;
       place(t.el, rr, rc);
       playBuzz();
       setTimeout(() => {
         place(t.el, r, c);                 // snap back
-        setTimeout(() => { busy = false; }, 170);
-      }, 260);
+        setTimeout(() => { busy = false; }, slideMs + 20);
+      }, slideMs + 60);
     }
   }
 
