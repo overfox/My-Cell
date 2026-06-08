@@ -2,7 +2,7 @@
    Everything — every flag and shape — is bundled inside index.html, so there
    are NO external requests at all. This SW just caches the page and icons so
    the app is installable and opens instantly even with no connection. */
-const CACHE = "limos-world-offline-v7";
+const CACHE = "limos-world-offline-v8";
 const SHELL = [
   "./",
   "./index.html",
@@ -27,15 +27,15 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+  // NETWORK-FIRST so app updates always appear when online; cache is the
+  // offline fallback (everything is bundled in the page anyway).
   event.respondWith(
-    caches.match(req).then((hit) =>
-      hit || fetch(req).then((res) => {
-        if (res && res.status === 200 && new URL(req.url).origin === self.location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      }).catch(() => caches.match("./index.html"))
-    )
+    fetch(req).then((res) => {
+      if (res && res.status === 200 && new URL(req.url).origin === self.location.origin) {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")))
   );
 });

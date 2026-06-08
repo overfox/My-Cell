@@ -1,7 +1,7 @@
 /* Limo's World service worker — installable + full offline support.
    On the first (online) visit it downloads every flag and map shape so the
    whole app works with no connection afterwards. */
-const CACHE = "limos-world-v9";
+const CACHE = "limos-world-v10";
 
 const SHELL = [
   "./",
@@ -88,16 +88,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App shell / same-origin: cache-first, fall back to network, then the cached page.
+  // App shell / same-origin: NETWORK-FIRST so updates always appear when online;
+  // fall back to the cached copy (or cached page) only when offline.
   event.respondWith(
-    caches.match(req).then((hit) =>
-      hit || fetch(req).then((res) => {
-        if (res && res.status === 200 && url.origin === self.location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      }).catch(() => caches.match("./index.html"))
-    )
+    fetch(req).then((res) => {
+      if (res && res.status === 200 && url.origin === self.location.origin) {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req).then((hit) => hit || caches.match("./index.html")))
   );
 });
