@@ -1132,42 +1132,38 @@ atlasLoad();
     const win = board.querySelector(".slide-win"); if (win) win.remove();
   }
 
-  // Empty cell-pairs in the same row/col with only empties between them — these
-  // are the valid spots to "un-pop" a pair when building the board in reverse.
-  function colinearEmptyPairs(g) {
+  function shuffleArr(a) { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  // Empty cells in the same row/col as (r,c) with a clear path between, plus distance.
+  function partnersOf(g, r, c) {
     const res = [];
-    for (let r = 0; r < N; r++) {
-      const e = []; for (let c = 0; c < N; c++) if (g[r][c] < 0) e.push(c);
-      for (let i = 0; i < e.length; i++) for (let j = i + 1; j < e.length; j++) {
-        let ok = true; for (let c = e[i] + 1; c < e[j]; c++) if (g[r][c] >= 0) { ok = false; break; }
-        if (ok) res.push([[r, e[i]], [r, e[j]], e[j] - e[i]]);
-      }
-    }
-    for (let c = 0; c < N; c++) {
-      const e = []; for (let r = 0; r < N; r++) if (g[r][c] < 0) e.push(r);
-      for (let i = 0; i < e.length; i++) for (let j = i + 1; j < e.length; j++) {
-        let ok = true; for (let r = e[i] + 1; r < e[j]; r++) if (g[r][c] >= 0) { ok = false; break; }
-        if (ok) res.push([[e[i], c], [e[j], c], e[j] - e[i]]);
-      }
-    }
+    for (let cc = c + 1; cc < N; cc++) { if (g[r][cc] >= 0) break; res.push([r, cc, cc - c]); }
+    for (let cc = c - 1; cc >= 0; cc--) { if (g[r][cc] >= 0) break; res.push([r, cc, c - cc]); }
+    for (let rr = r + 1; rr < N; rr++) { if (g[rr][c] >= 0) break; res.push([rr, c, rr - r]); }
+    for (let rr = r - 1; rr >= 0; rr--) { if (g[rr][c] >= 0) break; res.push([rr, c, r - rr]); }
     return res;
   }
 
-  // Reverse-construct a guaranteed-solvable full board, preferring far-apart
-  // pairs so only a few end up adjacent. Returns { g, adj } or null.
+  // Reverse-construct a guaranteed-solvable full board. Uses an MRV cell choice
+  // (fewest options first) and prefers far-apart partners, so most pairs end up
+  // scattered and only a couple are adjacent. Returns { g, adj } or null.
   function buildBoardOnce(cap) {
     const g = Array.from({ length: N }, () => Array(N).fill(-1));
     let id = 0, nodes = 0; const dist = [];
-    function empty() { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (g[r][c] < 0) return true; return false; }
+    function empties() { const e = []; for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (g[r][c] < 0) e.push([r, c]); return e; }
     function rec() {
       if (++nodes > cap) return "CAP";
-      if (!empty()) return true;
-      let ps = colinearEmptyPairs(g); if (ps.length === 0) return false;
-      ps.sort((a, b) => (b[2] - a[2]) + (Math.random() - 0.5) * 3);   // prefer far apart, with noise
-      for (const [[r1, c1], [r2, c2], d] of ps) {
-        g[r1][c1] = id; g[r2][c2] = id; dist.push(d); id++;
-        const r = rec(); if (r === true) return true; if (r === "CAP") return "CAP";
-        id--; dist.pop(); g[r1][c1] = -1; g[r2][c2] = -1;
+      const es = empties(); if (es.length === 0) return true;
+      shuffleArr(es);
+      let cell = null, parts = null;
+      for (const [r, c] of es) { const p = partnersOf(g, r, c); if (p.length === 0) return false; if (!parts || p.length < parts.length) { cell = [r, c]; parts = p; } }
+      const [r, c] = cell;
+      // weight by distance^2 so far partners are strongly preferred (less adjacency)
+      const ordered = parts.map((p) => [p, p[2] * p[2] * Math.random()]).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+      for (const [pr, pc, d] of ordered) {
+        g[r][c] = id; g[pr][pc] = id; id++; dist.push(d);
+        const rr = rec(); if (rr === true) return true; if (rr === "CAP") return "CAP";
+        id--; dist.pop(); g[r][c] = -1; g[pr][pc] = -1;
       }
       return false;
     }
@@ -1175,14 +1171,15 @@ atlasLoad();
     return { g, adj: dist.filter((d) => d === 1).length };
   }
 
-  // Generate a board with 1-3 already-touching pairs (the rest spread out).
+  // Generate a solvable board, keeping the one with the fewest already-touching
+  // pairs found within a short time budget (reliably lands at ~2 adjacent pairs).
   function makeSolvableBoard() {
     let best = null; const t0 = Date.now();
-    while (Date.now() - t0 < 700) {
-      const r = buildBoardOnce(6000);
+    while (Date.now() - t0 < 350) {
+      const r = buildBoardOnce(30000);
       if (!r) continue;
-      if (r.adj >= 1 && r.adj <= 3) return r.g;
-      if (!best) best = r;
+      if (!best || r.adj < best.adj) best = r;
+      if (best.adj <= 2) break;
     }
     return best ? best.g : null;
   }

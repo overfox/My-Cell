@@ -2,7 +2,7 @@
    Everything — every flag and shape — is bundled inside index.html, so there
    are NO external requests at all. This SW just caches the page and icons so
    the app is installable and opens instantly even with no connection. */
-const CACHE = "limos-world-offline-v6";
+const CACHE = "limos-world-offline-v7";
 const SHELL = [
   "./",
   "./index.html",
