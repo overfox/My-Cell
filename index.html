@@ -265,35 +265,13 @@
   /* ===== Country of the Day ===== */
   #panel-today { display: none; } #panel-today.active { display: flex; flex-direction: column; height: 100%; }
   .today-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: #fff; border: 4px dashed var(--blue); border-radius: 16px; padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
-  .today-flag img { width: 78%; max-width: 280px; max-height: 180px; border-radius: 10px; box-shadow: 0 5px 16px rgba(0,0,0,0.35); }
   .today-name { font-size: 1.6rem; font-weight: 800; color: var(--teal); display: flex; gap: 8px; align-items: center; justify-content: center; }
   .today-tag { font-size: 0.95rem; font-weight: 800; color: var(--purple); }
-  .today-media { display: flex; gap: 16px; justify-content: center; align-items: flex-end; }
-  .today-shape, .today-flagcard { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .today-flagcard img { max-width: 130px; max-height: 95px; border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
-  .today-shape img { max-width: 130px; max-height: 100px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25)) brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%); }
-  .media-cap { font-size: 0.62rem; font-weight: 800; color: #8a8d9f; text-transform: uppercase; }
-  /* Realistic banknote (offline, drawn with CSS) */
-  .banknote {
-    position: relative; width: 280px; max-width: 90%; height: 130px; flex: 0 0 auto; margin: 8px auto;
-    border-radius: 10px; color: #1b5e3a; overflow: hidden;
-    background:
-      repeating-linear-gradient(45deg, rgba(27,94,58,0.06) 0 6px, transparent 6px 12px),
-      repeating-linear-gradient(-45deg, rgba(27,94,58,0.06) 0 6px, transparent 6px 12px),
-      radial-gradient(circle at 50% 50%, #f2fbf4 0%, #d9f2e2 70%, #cdeAD8 100%);
-    border: 2px solid #2e8b57;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 0 0 4px rgba(46,139,87,0.25), inset 0 0 0 6px rgba(46,139,87,0.12);
-    font-family: Georgia, "Times New Roman", serif;
-  }
-  .bn-corner { position: absolute; font-weight: 800; font-size: 1.1rem; color: #2e8b57; text-shadow: 0 1px 0 #fff; }
-  .bn-corner.tl { top: 6px; left: 9px; } .bn-corner.br { bottom: 6px; right: 9px; }
-  .bn-portrait { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 64px; height: 64px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(46,139,87,0.55); box-shadow: 0 0 0 3px rgba(255,255,255,0.6); }
-  .bn-portrait img { width: 100%; height: 100%; object-fit: cover; filter: sepia(0.25) contrast(1.05); }
-  .bn-center { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; }
-  .bn-sym { font-size: 2.1rem; font-weight: 800; line-height: 1; color: #1b5e3a; }
-  .bn-deno { font-size: 1.5rem; font-weight: 800; line-height: 1; }
-  .bn-name { position: absolute; left: 0; right: 0; top: 8px; text-align: center; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px; color: #1b5e3a; }
-  .bn-bank { position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.5px; color: rgba(27,94,58,0.7); }
+  .today-media { display: flex; gap: 14px; justify-content: center; align-items: center; width: 100%; }
+  .today-shape, .today-flagcard { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1 1 0; min-width: 0; max-width: 48%; }
+  .today-flagcard img { width: 100%; max-width: 220px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .today-shape img { width: 100%; max-width: 200px; max-height: 150px; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25)) brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%); }
+  .media-cap { font-size: 0.65rem; font-weight: 800; color: #8a8d9f; text-transform: uppercase; }
   .fact-list { text-align: left; max-width: 380px; margin: 4px auto; padding-left: 20px; font-size: 0.92rem; font-weight: 700; color: var(--ink); line-height: 1.45; }
   .fact-list li { margin: 3px 0; }
   #todayNext { margin-top: 4px; align-self: center; min-width: 200px; }
@@ -1079,43 +1057,16 @@ function countryFacts(country) {
   return out;
 }
 
-// A realistic, fully-offline "banknote" for a country's currency: engraved
-// frame, the flag as the portrait, denomination corners, symbol, name + code.
-function banknoteHTML(country) {
-  const info = CDATA[country.c] || {};
-  const sym = info.csym || "💱";
-  const code = info.ccode || "";
-  const cur = info.cur || "Local money";
-  // a friendly "denomination" derived from the code so each note differs a bit
-  const denoms = [5, 10, 20, 50, 100];
-  const deno = denoms[(code.charCodeAt(0) + code.charCodeAt(2 % code.length || 0)) % denoms.length] || 10;
-  return (
-    '<div class="banknote">' +
-      '<div class="bn-corner tl">' + deno + '</div>' +
-      '<div class="bn-corner br">' + deno + '</div>' +
-      '<div class="bn-portrait"><img src="' + flagSrc(country) + '" alt=""></div>' +
-      '<div class="bn-center">' +
-        '<div class="bn-sym">' + sym + '</div>' +
-        '<div class="bn-deno">' + deno + '</div>' +
-      '</div>' +
-      '<div class="bn-name">' + cur + (code ? ' · ' + code : '') + '</div>' +
-      '<div class="bn-bank">CENTRAL BANK OF ' + country.n.toUpperCase() + '</div>' +
-    '</div>'
-  );
-}
-
 function renderCountryCard(country, isDaily) {
   const card = document.getElementById("todayCard");
   const factList = countryFacts(country).map((f) => "<li>" + f + "</li>").join("");
   card.innerHTML =
     (isDaily ? '<div class="today-tag">🌟 Country of the Day 🌟</div>' : '') +
-    '<div class="today-flag"><img src="' + flagSrc(country) + '" alt=""></div>' +
     '<div class="today-name">' + country.n + ' <button class="speak-btn" title="Say it">🔊</button></div>' +
     '<div class="today-media">' +
       '<div class="today-flagcard"><img src="' + flagSrc(country) + '" alt=""><span class="media-cap">flag</span></div>' +
       '<div class="today-shape"><img src="' + shapeSrc(country) + '" alt=""><span class="media-cap">map</span></div>' +
     '</div>' +
-    banknoteHTML(country) +
     '<ul class="fact-list">' + factList + '</ul>' +
     '<button class="action draw-btn" id="todayNext">➡️ Another country!</button>';
   card.querySelector(".speak-btn").addEventListener("click", () => speakCountry(country));
