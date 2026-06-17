@@ -282,6 +282,20 @@
   .badge-ico { font-size: 1.8rem; line-height: 1.1; }
   .badge-nm { font-size: 0.72rem; font-weight: 800; color: var(--ink); }
   .badge-ds { font-size: 0.6rem; font-weight: 700; color: #8a8d9f; line-height: 1.1; margin-top: 2px; }
+  /* ===== Memory (flag concentration) ===== */
+  #panel-memory { display: none; } #panel-memory.active { display: flex; flex-direction: column; height: 100%; }
+  .mem-size { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; flex: 0 0 auto; }
+  .mem-board { flex: 1 1 auto; min-height: 0; display: grid; gap: 6px; align-content: center; justify-content: center; padding: 4px; }
+  .mem-card { position: relative; aspect-ratio: 4 / 3; cursor: pointer; perspective: 600px; }
+  .mem-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.35s; }
+  .mem-card.flipped .mem-inner, .mem-card.matched .mem-inner { transform: rotateY(180deg); }
+  .mem-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+  .mem-back { background: linear-gradient(135deg, var(--purple), var(--blue)); font-size: 1.6rem; }
+  .mem-front { background: #fff; transform: rotateY(180deg); }
+  .mem-front img { width: 100%; height: 100%; object-fit: cover; }
+  .mem-card.matched { animation: memPop 0.4s ease; }
+  .mem-card.matched .mem-face { border-color: var(--green); box-shadow: 0 3px 0 var(--green); }
+  @keyframes memPop { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
   .install-btn { position: fixed; right: 10px; bottom: 10px; z-index: 1001; border: 3px solid var(--ink); background: var(--yellow); color: var(--ink); font-family: inherit; font-weight: 800; font-size: 0.85rem; padding: 8px 12px; border-radius: 16px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; }
   .install-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
   .sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1002; padding: 18px; }
@@ -317,6 +331,7 @@
       <button class="tab" data-tab="album"><span class="ico">📔</span><span class="lbl">Album</span></button>
       <button class="tab" data-tab="atlas"><span class="ico">🌎</span><span class="lbl">Atlas</span></button>
       <button class="tab" data-tab="slide"><span class="ico">🀄</span><span class="lbl">Slide</span></button>
+      <button class="tab" data-tab="memory"><span class="ico">🧩</span><span class="lbl">Memory</span></button>
       <button class="tab" data-tab="badges"><span class="ico">🏅</span><span class="lbl">Badges</span></button>
     </div>
 
@@ -333,6 +348,20 @@
       <div class="panel" id="panel-badges">
         <div class="album-head" id="badgesHead">🏅 Your Badges</div>
         <div class="badge-grid" id="badgeGrid"></div>
+      </div>
+
+      <!-- MEMORY (flag concentration) -->
+      <div class="panel" id="panel-memory">
+        <div class="album-head" id="memHead">🧩 Find the matching flag pairs!</div>
+        <div class="mem-size">
+          <button class="size-btn active" data-mem="3">Easy</button>
+          <button class="size-btn" data-mem="4">Medium</button>
+          <button class="size-btn" data-mem="5">Hard</button>
+        </div>
+        <div id="memBoard" class="mem-board"></div>
+        <div class="buttons">
+          <button class="action draw-btn" id="memNew">🔀 New Game</button>
+        </div>
       </div>
 
       <!-- FLAGS -->
@@ -1619,6 +1648,103 @@ atlasLoad();
   let slideInited = false;
   document.querySelector('.tab[data-tab="slide"]').addEventListener("click", () => {
     if (!slideInited) { slideInited = true; newBoard(); }
+  });
+})();
+
+/* ===== Memory (flag concentration) ===== */
+(function () {
+  const board = document.getElementById("memBoard");
+  const head = document.getElementById("memHead");
+  const newBtn = document.getElementById("memNew");
+  if (!board) return;
+
+  let gridN = 3;               // pairs per "unit"; grid is (2*gridN) cards wide-ish
+  let deck = [], first = null, lock = false, matched = 0, moves = 0;
+
+  function layout(pairs) {
+    // choose columns close to square for 2*pairs cards
+    const total = pairs * 2;
+    let cols = Math.ceil(Math.sqrt(total));
+    while (total % cols !== 0 && cols < total) cols++;
+    if (total % cols !== 0) cols = Math.ceil(Math.sqrt(total));
+    return cols;
+  }
+
+  function newGame() {
+    const pairs = gridN === 3 ? 6 : gridN === 4 ? 8 : 10;   // Easy 6, Medium 8, Hard 10
+    const pool = countries.map((c) => c.c); shuffle(pool);
+    const picks = pool.slice(0, pairs);
+    deck = shuffle(picks.concat(picks).map((c, i) => ({ c, id: i })));
+    first = null; lock = false; matched = 0; moves = 0;
+    const cols = layout(pairs);
+    board.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+    board.style.maxWidth = (cols * 86) + "px";
+    board.style.margin = "0 auto 10px";
+    board.innerHTML = "";
+    deck.forEach((card) => {
+      const el = document.createElement("div");
+      el.className = "mem-card";
+      el.innerHTML =
+        '<div class="mem-inner">' +
+          '<div class="mem-face mem-back">🌍</div>' +
+          '<div class="mem-face mem-front"><img src="' + flagSrc({ c: card.c }) + '" alt=""></div>' +
+        '</div>';
+      el.addEventListener("click", () => flip(el, card));
+      card.el = el;
+      board.appendChild(el);
+    });
+    updateHead();
+  }
+
+  function updateHead() {
+    const total = deck.length / 2;
+    if (matched === total) head.textContent = "🏆 You found all " + total + " pairs in " + moves + " moves!";
+    else head.textContent = "🧩 Pairs found: " + matched + " / " + total + " · moves: " + moves;
+  }
+
+  function flip(el, card) {
+    if (lock || el.classList.contains("flipped") || el.classList.contains("matched")) return;
+    el.classList.add("flipped");
+    playPop();
+    if (!first) { first = { el, card }; return; }
+    moves++;
+    if (first.card.c === card.c && first.el !== el) {
+      // match!
+      el.classList.add("matched"); first.el.classList.add("matched");
+      first = null; matched++;
+      collect({ c: card.c });
+      updateHead();
+      playCheer();
+      if (matched === deck.length / 2) winGame();
+    } else {
+      // no match: flip both back
+      lock = true;
+      const a = first.el; first = null;
+      playBuzz();
+      setTimeout(() => { a.classList.remove("flipped"); el.classList.remove("flipped"); lock = false; updateHead(); }, 750);
+    }
+    updateHead();
+  }
+
+  function winGame() {
+    addStar(5);
+    spawnConfetti(); playCheer();
+    toast("🏆 Memory cleared in " + moves + " moves! +5 ⭐", 3500);
+  }
+
+  document.querySelectorAll(".mem-size .size-btn").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".mem-size .size-btn").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      gridN = parseInt(b.dataset.mem, 10);
+      newGame();
+    });
+  });
+  newBtn.addEventListener("click", newGame);
+
+  let memInited = false;
+  document.querySelector('.tab[data-tab="memory"]').addEventListener("click", () => {
+    if (!memInited) { memInited = true; newGame(); }
   });
 })();
 
