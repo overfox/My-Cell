@@ -268,7 +268,8 @@
   .today-name { font-size: 1.5rem; font-weight: 800; color: var(--teal); display: flex; gap: 8px; align-items: center; justify-content: center; }
   .today-tag { font-size: 0.95rem; font-weight: 800; color: var(--purple); }
   .today-media { display: flex; gap: 16px; justify-content: center; align-items: flex-end; }
-  .today-shape { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .today-shape, .today-flagcard { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .today-flagcard img { max-width: 110px; max-height: 80px; border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
   .today-shape img { max-width: 110px; max-height: 90px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25)) brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%); }
   .media-cap { font-size: 0.6rem; font-weight: 800; color: #8a8d9f; text-transform: uppercase; }
   /* Realistic banknote (offline, drawn with CSS) */
@@ -435,6 +436,7 @@
           <div id="atlasTitle" class="album-head">🌎 Tap a continent to explore!</div>
           <div id="atlasWorld" class="atlas-world world-select"></div>
           <div id="contButtons" class="cont-buttons"></div>
+          <button class="action reveal-btn" id="atlasReset" style="margin-top:8px">🧹 Reset Map</button>
         </div>
         <div id="atlasPlay" class="atlas-view" style="display:none;">
           <div class="atlas-head">
@@ -1148,6 +1150,7 @@ function renderCountryCard(country, isDaily) {
     '<div class="today-flag"><img src="' + flagSrc(country) + '" alt=""></div>' +
     '<div class="today-name">' + country.n + ' <button class="speak-btn" title="Say it">🔊</button></div>' +
     '<div class="today-media">' +
+      '<div class="today-flagcard"><img src="' + flagSrc(country) + '" alt=""><span class="media-cap">flag</span></div>' +
       '<div class="today-shape"><img src="' + shapeSrc(country) + '" alt=""><span class="media-cap">map</span></div>' +
     '</div>' +
     banknoteHTML(country) +
@@ -1367,6 +1370,12 @@ document.querySelector('.tab[data-tab="atlas"]').addEventListener("click", rende
 document.getElementById("atlasBack").addEventListener("click", renderWorldSelect);
 document.getElementById("zoomIn").addEventListener("click", () => zoomBy(1));
 document.getElementById("zoomOut").addEventListener("click", () => zoomBy(-1));
+document.getElementById("atlasReset").addEventListener("click", () => {
+  if (!confirm("Reset the map? This clears all the countries you've turned green in the Atlas.")) return;
+  atlas = { identified: new Set(), correct: 0, wrong: 0 };
+  atlasSave();
+  renderWorldSelect();
+});
 atlasLoad();
 
 /* ===== Slide (flag mahjong) =====
