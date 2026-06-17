@@ -251,6 +251,31 @@
     font-weight: 800; font-size: 1.3rem; gap: 10px;
   }
   .slide-win.show { display: flex; }
+  /* ===== Level bar ===== */
+  .levelbar { position: relative; height: 20px; background: #fff; border: 3px solid var(--ink); border-radius: 12px; margin: 0 0 10px; overflow: hidden; box-shadow: 0 3px 0 var(--ink); flex: 0 0 auto; }
+  .levelbar-fill { position: absolute; inset: 0 auto 0 0; width: 0%; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width 0.4s ease; }
+  .levelbar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: var(--ink); }
+  /* ===== Info card (rich reveal) ===== */
+  .info-card { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+  .info-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; }
+  .info-pill { background: #fff; border: 2px solid var(--blue); border-radius: 12px; padding: 3px 9px; font-size: 0.8rem; font-weight: 800; color: var(--ink); }
+  .info-fact { font-size: 0.9rem; font-weight: 700; color: var(--purple); line-height: 1.3; }
+  .speak-btn { border: 2px solid var(--ink); background: var(--yellow); border-radius: 10px; font-size: 0.9rem; padding: 2px 7px; cursor: pointer; box-shadow: 0 2px 0 var(--ink); }
+  .speak-btn:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+  /* ===== Country of the Day ===== */
+  #panel-today { display: none; } #panel-today.active { display: flex; flex-direction: column; height: 100%; }
+  .today-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: #fff; border: 4px dashed var(--blue); border-radius: 16px; padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .today-flag img { max-width: 160px; max-height: 110px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .today-name { font-size: 1.5rem; font-weight: 800; color: var(--teal); display: flex; gap: 8px; align-items: center; justify-content: center; }
+  .today-shape img { max-width: 120px; max-height: 110px; margin-top: 4px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25)) brightness(0) saturate(100%) invert(38%) sepia(89%) saturate(2400%) hue-rotate(258deg) brightness(95%) contrast(95%); }
+  /* ===== Badges ===== */
+  #panel-badges { display: none; } #panel-badges.active { display: flex; flex-direction: column; height: 100%; }
+  .badge-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; padding: 6px; }
+  .badge { border: 3px solid #e3e3ef; background: #f4f4fa; border-radius: 14px; padding: 8px 4px; text-align: center; opacity: 0.65; }
+  .badge.got { border-color: var(--green); background: #eafff0; opacity: 1; }
+  .badge-ico { font-size: 1.8rem; line-height: 1.1; }
+  .badge-nm { font-size: 0.72rem; font-weight: 800; color: var(--ink); }
+  .badge-ds { font-size: 0.6rem; font-weight: 700; color: #8a8d9f; line-height: 1.1; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -262,8 +287,13 @@
       <div class="chip">🔥 Streak<b id="scStreak">0</b></div>
       <div class="chip">🏆 Best<b id="scBest">0</b></div>
     </div>
+    <div class="levelbar" id="levelBar" title="Level progress">
+      <div class="levelbar-fill" id="levelFill"></div>
+      <span class="levelbar-text" id="levelText">Level 1</span>
+    </div>
 
     <div class="tabs">
+      <button class="tab" data-tab="today"><span class="ico">📅</span><span class="lbl">Today</span></button>
       <button class="tab active" data-tab="flag"><span class="ico">🚩</span><span class="lbl">Flags</span></button>
       <button class="tab" data-tab="shape"><span class="ico">🗺️</span><span class="lbl">Maps</span></button>
       <button class="tab" data-tab="both"><span class="ico">✨</span><span class="lbl">Both</span></button>
@@ -271,11 +301,24 @@
       <button class="tab" data-tab="album"><span class="ico">📔</span><span class="lbl">Album</span></button>
       <button class="tab" data-tab="atlas"><span class="ico">🌎</span><span class="lbl">Atlas</span></button>
       <button class="tab" data-tab="slide"><span class="ico">🀄</span><span class="lbl">Slide</span></button>
+      <button class="tab" data-tab="badges"><span class="ico">🏅</span><span class="lbl">Badges</span></button>
     </div>
 
     <div id="toast" class="toast"></div>
 
     <div class="panels">
+      <!-- COUNTRY OF THE DAY -->
+      <div class="panel" id="panel-today">
+        <div class="album-head" id="todayHead">📅 Country of the Day</div>
+        <div class="today-card" id="todayCard"></div>
+      </div>
+
+      <!-- BADGES -->
+      <div class="panel" id="panel-badges">
+        <div class="album-head" id="badgesHead">🏅 Your Badges</div>
+        <div class="badge-grid" id="badgeGrid"></div>
+      </div>
+
       <!-- FLAGS -->
       <div class="panel active" id="panel-flag">
         <div class="stage">
@@ -658,25 +701,47 @@ const PRAISE = ["🎉 Woohoo!","🌟 Awesome!","🥳 You got it!","🚀 Genius!"
 const SAVE_KEY = "limosWorld";
 let stars = 0, best = 0, streak = 0;
 let collected = new Set();
+// extra stats for badges / daily
+let stat = { quizWins: 0, slideClears: 0, daysSeen: [], lastDay: "", earned: [] };
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY)) || {};
     stars = s.stars || 0; best = s.best || 0;
     collected = new Set(s.collected || []);
+    stat = Object.assign(stat, s.stat || {});
+    if (!Array.isArray(stat.daysSeen)) stat.daysSeen = [];
+    if (!Array.isArray(stat.earned)) stat.earned = [];
   } catch (e) { /* ignore */ }
 }
 function persist() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stars, best, collected: [...collected] })); }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stars, best, collected: [...collected], stat })); }
   catch (e) { /* ignore */ }
+}
+
+// ---- Level system: each level needs a bit more than the last ----
+function levelInfo() {
+  // thresholds: 0,10,25,45,70,100,140,... (grows by +5 each level)
+  let lvl = 1, need = 10, acc = 0, step = 10;
+  while (stars >= acc + need) { acc += need; lvl++; step += 5; need = step; }
+  const into = stars - acc, span = need;
+  return { lvl, into, span, pct: Math.round((into / span) * 100) };
 }
 
 // ---- Scoreboard ----
 const scStars = document.getElementById("scStars");
 const scStreak = document.getElementById("scStreak");
 const scBest = document.getElementById("scBest");
-function renderScore() { scStars.textContent = stars; scStreak.textContent = streak; scBest.textContent = best; }
-function addStar(n = 1) { stars += n; renderScore(); persist(); }
-function bumpStreak() { streak++; if (streak > best) best = streak; renderScore(); persist(); }
+const levelFill = document.getElementById("levelFill");
+const levelText = document.getElementById("levelText");
+function renderScore() {
+  scStars.textContent = stars; scStreak.textContent = streak; scBest.textContent = best;
+  const li = levelInfo();
+  if (levelFill) levelFill.style.width = li.pct + "%";
+  if (levelText) levelText.textContent = "Level " + li.lvl + " · " + li.into + "/" + li.span + " ⭐";
+}
+function addStar(n = 1) { const before = levelInfo().lvl; stars += n; renderScore(); persist(); if (levelInfo().lvl > before) onLevelUp(levelInfo().lvl); checkBadges(); }
+function bumpStreak() { streak++; if (streak > best) best = streak; renderScore(); persist(); checkBadges(); }
+function onLevelUp(lvl) { toast("🎉 Level " + lvl + "! Keep exploring!", 3500); spawnConfetti(); playCheer(); }
 function resetStreak() { streak = 0; renderScore(); }
 
 // ---- Sounds ----
@@ -755,6 +820,8 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
     if (tab.dataset.tab === "quiz" && !quizStarted) { quizStarted = true; newQuizQuestion(); }
     if (tab.dataset.tab === "album") buildAlbum();
+    if (tab.dataset.tab === "today") renderToday();
+    if (tab.dataset.tab === "badges") renderBadges();
   });
 });
 
@@ -781,9 +848,10 @@ function setupPanel({ drawId, revealId, mediaId, images, placeholderId, nameId, 
     if (!current) return;
     nameEl.textContent = "🎉 " + current.n + "!"; nameEl.classList.remove("hidden-name");
     void nameEl.offsetWidth; nameEl.classList.add("revealed");
-    factEl.textContent = "💡 " + (facts[current.c] || "A wonderful place to explore!");
+    fillInfoCard(factEl, current);
     if (!scored) { scored = true; addStar(); }
     collect(current);
+    speakCountry(current);
     playCheer(); spawnConfetti();
   });
 }
@@ -854,7 +922,9 @@ function answerQuiz(country, btn) {
   collect(quizAnswer);
   if (country.c === quizAnswer.c) {
     addStar(); bumpStreak();
+    stat.quizWins = (stat.quizWins || 0) + 1; persist(); checkBadges();
     quizFact.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)] + " It's " + quizAnswer.n + ". 💡 " + (facts[quizAnswer.c] || "");
+    speakCountry(quizAnswer);
     playCheer(); spawnConfetti();
   } else {
     btn.classList.add("wrong"); resetStreak();
@@ -871,10 +941,6 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   stars = 0; best = 0; streak = 0; collected = new Set();
   persist(); renderScore(); buildAlbum();
 });
-
-// ---- Start ----
-loadSave();
-renderScore();
 
 // ---- Friendly toast ----
 function toast(msg, ms = 3000) {
@@ -897,6 +963,105 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const CONTS = ["Africa","Asia","Europe","North America","South America","Oceania"];
 const CONT_EMOJI = { "Africa":"🦁", "Asia":"🐼", "Europe":"🏰", "North America":"🦅", "South America":"🦜", "Oceania":"🐨" };
 const NAME = {}; countries.forEach((c) => { NAME[c.c] = c.n; });
+
+// ---- Country info (capital + continent) + speech + rich reveal card ----
+const CDATA = {"af":{"cap":"Kabul","cont":"Asia"},"al":{"cap":"Tirana","cont":"Europe"},"dz":{"cap":"Alger","cont":"Africa"},"ad":{"cap":"Andorra la Vella","cont":"Europe"},"ao":{"cap":"Luanda","cont":"Africa"},"ag":{"cap":"Saint John's","cont":"North America"},"ar":{"cap":"Buenos Aires","cont":"South America"},"am":{"cap":"Yerevan","cont":"Asia"},"au":{"cap":"Canberra","cont":"Oceania"},"at":{"cap":"Wien","cont":"Europe"},"az":{"cap":"Baku","cont":"Asia"},"bs":{"cap":"Nassau","cont":"North America"},"bh":{"cap":"al-Manama","cont":"Asia"},"bd":{"cap":"Dhaka","cont":"Asia"},"bb":{"cap":"Bridgetown","cont":"North America"},"by":{"cap":"Minsk","cont":"Europe"},"be":{"cap":"Bruxelles [Brussel]","cont":"Europe"},"bz":{"cap":"Belmopan","cont":"North America"},"bj":{"cap":"Porto-Novo","cont":"Africa"},"bt":{"cap":"Thimphu","cont":"Asia"},"bo":{"cap":"La Paz","cont":"South America"},"ba":{"cap":"Sarajevo","cont":"Europe"},"bw":{"cap":"Gaborone","cont":"Africa"},"br":{"cap":"Bras\u00edlia","cont":"South America"},"bn":{"cap":"Bandar Seri Begawan","cont":"Asia"},"bg":{"cap":"Sofia","cont":"Europe"},"bf":{"cap":"Ouagadougou","cont":"Africa"},"bi":{"cap":"Bujumbura","cont":"Africa"},"cv":{"cap":"Praia","cont":"Africa"},"kh":{"cap":"Phnom Penh","cont":"Asia"},"cm":{"cap":"Yaounde","cont":"Africa"},"ca":{"cap":"Ottawa","cont":"North America"},"cf":{"cap":"Bangui","cont":"Africa"},"td":{"cap":"N'Djamena","cont":"Africa"},"cl":{"cap":"Santiago de Chile","cont":"South America"},"cn":{"cap":"Peking","cont":"Asia"},"co":{"cap":"Bogota","cont":"South America"},"km":{"cap":"Moroni","cont":"Africa"},"cg":{"cap":"Brazzaville","cont":"Africa"},"cd":{"cap":"Kinshasa","cont":"Africa"},"cr":{"cap":"San Jos\u00e9","cont":"North America"},"ci":{"cap":"Yamoussoukro","cont":"Africa"},"hr":{"cap":"Zagreb","cont":"Europe"},"cu":{"cap":"La Habana","cont":"North America"},"cy":{"cap":"Nicosia","cont":"Asia"},"cz":{"cap":"Praha","cont":"Europe"},"dk":{"cap":"Copenhagen","cont":"Europe"},"dj":{"cap":"Djibouti","cont":"Africa"},"dm":{"cap":"Roseau","cont":"North America"},"do":{"cap":"Santo Domingo de Guzm","cont":"North America"},"ec":{"cap":"Quito","cont":"South America"},"eg":{"cap":"Cairo","cont":"Africa"},"sv":{"cap":"San Salvador","cont":"North America"},"gq":{"cap":"Malabo","cont":"Africa"},"er":{"cap":"Asmara","cont":"Africa"},"ee":{"cap":"Tallinn","cont":"Europe"},"sz":{"cap":"Mbabane","cont":"Africa"},"et":{"cap":"Addis Abeba","cont":"Africa"},"fj":{"cap":"Suva","cont":"Oceania"},"fi":{"cap":"Helsinki [Helsingfors]","cont":"Europe"},"fr":{"cap":"Paris","cont":"Europe"},"ga":{"cap":"Libreville","cont":"Africa"},"gm":{"cap":"Banjul","cont":"Africa"},"ge":{"cap":"Tbilisi","cont":"Asia"},"de":{"cap":"Berlin","cont":"Europe"},"gh":{"cap":"Accra","cont":"Africa"},"gr":{"cap":"Athenai","cont":"Europe"},"gd":{"cap":"Saint George's","cont":"North America"},"gt":{"cap":"Ciudad de Guatemala","cont":"North America"},"gn":{"cap":"Conakry","cont":"Africa"},"gw":{"cap":"Bissau","cont":"Africa"},"gy":{"cap":"Georgetown","cont":"South America"},"ht":{"cap":"Port-au-Prince","cont":"North America"},"hn":{"cap":"Tegucigalpa","cont":"North America"},"hu":{"cap":"Budapest","cont":"Europe"},"is":{"cap":"Reykjav\u00edk","cont":"Europe"},"in":{"cap":"New Delhi","cont":"Asia"},"id":{"cap":"Jakarta","cont":"Asia"},"ir":{"cap":"Tehran","cont":"Asia"},"iq":{"cap":"Baghdad","cont":"Asia"},"ie":{"cap":"Dublin","cont":"Europe"},"il":{"cap":"Jerusalem","cont":"Asia"},"it":{"cap":"Roma","cont":"Europe"},"jm":{"cap":"Kingston","cont":"North America"},"jp":{"cap":"Tokyo","cont":"Asia"},"jo":{"cap":"Amman","cont":"Asia"},"kz":{"cap":"Astana","cont":"Asia"},"ke":{"cap":"Nairobi","cont":"Africa"},"ki":{"cap":"Bairiki","cont":"Oceania"},"kw":{"cap":"Kuwait","cont":"Asia"},"kg":{"cap":"Bishkek","cont":"Asia"},"la":{"cap":"Vientiane","cont":"Asia"},"lv":{"cap":"Riga","cont":"Europe"},"lb":{"cap":"Beirut","cont":"Asia"},"ls":{"cap":"Maseru","cont":"Africa"},"lr":{"cap":"Monrovia","cont":"Africa"},"ly":{"cap":"Tripoli","cont":"Africa"},"li":{"cap":"Vaduz","cont":"Europe"},"lt":{"cap":"Vilnius","cont":"Europe"},"lu":{"cap":"Luxembourg [Luxemburg/L","cont":"Europe"},"mg":{"cap":"Antananarivo","cont":"Africa"},"mw":{"cap":"Lilongwe","cont":"Africa"},"my":{"cap":"Kuala Lumpur","cont":"Asia"},"mv":{"cap":"Male","cont":"Asia"},"ml":{"cap":"Bamako","cont":"Africa"},"mt":{"cap":"Valletta","cont":"Europe"},"mh":{"cap":"Dalap-Uliga-Darrit","cont":"Oceania"},"mr":{"cap":"Nouakchott","cont":"Africa"},"mu":{"cap":"Port-Louis","cont":"Africa"},"mx":{"cap":"Ciudad de M","cont":"North America"},"fm":{"cap":"Palikir","cont":"Oceania"},"md":{"cap":"Chisinau","cont":"Europe"},"mc":{"cap":"Monaco-Ville","cont":"Europe"},"mn":{"cap":"Ulan Bator","cont":"Asia"},"me":{"cap":"Podgorica","cont":"Europe"},"ma":{"cap":"Rabat","cont":"Africa"},"mz":{"cap":"Maputo","cont":"Africa"},"mm":{"cap":"Rangoon (Yangon)","cont":"Asia"},"na":{"cap":"Windhoek","cont":"Africa"},"nr":{"cap":"Yaren","cont":"Oceania"},"np":{"cap":"Kathmandu","cont":"Asia"},"nl":{"cap":"Amsterdam","cont":"Europe"},"nz":{"cap":"Wellington","cont":"Oceania"},"ni":{"cap":"Managua","cont":"North America"},"ne":{"cap":"Niamey","cont":"Africa"},"ng":{"cap":"Abuja","cont":"Africa"},"kp":{"cap":"Pyongyang","cont":"Asia"},"mk":{"cap":"Skopje","cont":"Europe"},"no":{"cap":"Oslo","cont":"Europe"},"om":{"cap":"Masqat","cont":"Asia"},"pk":{"cap":"Islamabad","cont":"Asia"},"pw":{"cap":"Koror","cont":"Oceania"},"ps":{"cap":"Gaza","cont":"Asia"},"pa":{"cap":"Ciudad de Panam\u00e1","cont":"North America"},"pg":{"cap":"Port Moresby","cont":"Oceania"},"py":{"cap":"Asunci\u00f3n","cont":"South America"},"pe":{"cap":"Lima","cont":"South America"},"ph":{"cap":"Manila","cont":"Asia"},"pl":{"cap":"Warszawa","cont":"Europe"},"pt":{"cap":"Lisboa","cont":"Europe"},"qa":{"cap":"Doha","cont":"Asia"},"ro":{"cap":"Bucuresti","cont":"Europe"},"ru":{"cap":"Moscow","cont":"Europe"},"rw":{"cap":"Kigali","cont":"Africa"},"kn":{"cap":"Basseterre","cont":"North America"},"lc":{"cap":"Castries","cont":"North America"},"vc":{"cap":"Kingstown","cont":"North America"},"ws":{"cap":"Apia","cont":"Oceania"},"sm":{"cap":"San Marino","cont":"Europe"},"st":{"cap":"S\u00e3o Tom\u00e9","cont":"Africa"},"sa":{"cap":"Riyadh","cont":"Asia"},"sn":{"cap":"Dakar","cont":"Africa"},"rs":{"cap":"Belgrade","cont":"Europe"},"sc":{"cap":"Victoria","cont":"Africa"},"sl":{"cap":"Freetown","cont":"Africa"},"sg":{"cap":"Singapore","cont":"Asia"},"sk":{"cap":"Bratislava","cont":"Europe"},"si":{"cap":"Ljubljana","cont":"Europe"},"sb":{"cap":"Honiara","cont":"Oceania"},"so":{"cap":"Mogadishu","cont":"Africa"},"za":{"cap":"Pretoria","cont":"Africa"},"kr":{"cap":"Seoul","cont":"Asia"},"ss":{"cap":"Juba","cont":"Africa"},"es":{"cap":"Madrid","cont":"Europe"},"lk":{"cap":"Colombo, Sri Jayawardenepura Kotte","cont":"Asia"},"sd":{"cap":"Khartum","cont":"Africa"},"sr":{"cap":"Paramaribo","cont":"South America"},"se":{"cap":"Stockholm","cont":"Europe"},"ch":{"cap":"Bern","cont":"Europe"},"sy":{"cap":"Damascus","cont":"Asia"},"tj":{"cap":"Dushanbe","cont":"Asia"},"tz":{"cap":"Dodoma","cont":"Africa"},"th":{"cap":"Bangkok","cont":"Asia"},"tl":{"cap":"Dili","cont":"Asia"},"tg":{"cap":"Lom\u00e9","cont":"Africa"},"to":{"cap":"Nuku'alofa","cont":"Oceania"},"tt":{"cap":"Port-of-Spain","cont":"North America"},"tn":{"cap":"Tunis","cont":"Africa"},"tr":{"cap":"Ankara","cont":"Asia"},"tm":{"cap":"Ashgabat","cont":"Asia"},"tv":{"cap":"Funafuti","cont":"Oceania"},"ug":{"cap":"Kampala","cont":"Africa"},"ua":{"cap":"Kyiv","cont":"Europe"},"ae":{"cap":"Abu Dhabi","cont":"Asia"},"gb":{"cap":"London","cont":"Europe"},"us":{"cap":"Washington","cont":"North America"},"uy":{"cap":"Montevideo","cont":"South America"},"uz":{"cap":"Toskent","cont":"Asia"},"vu":{"cap":"Port-Vila","cont":"Oceania"},"va":{"cap":"Vatican City","cont":"Europe"},"ve":{"cap":"Caracas","cont":"South America"},"vn":{"cap":"Hanoi","cont":"Asia"},"ye":{"cap":"Sanaa","cont":"Asia"},"zm":{"cap":"Lusaka","cont":"Africa"},"zw":{"cap":"Harare","cont":"Africa"}};
+const CONT_EMOJI2 = { "Africa":"🦁","Asia":"🐼","Europe":"🏰","North America":"🦅","South America":"🦜","Oceania":"🐨" };
+
+function speakCountry(country) {
+  try {
+    if (!window.speechSynthesis) return;
+    const info = CDATA[country.c] || {};
+    const txt = country.n + (info.cap ? ". Capital: " + info.cap : "");
+    const u = new SpeechSynthesisUtterance(txt);
+    u.rate = 0.9; u.pitch = 1.1;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (e) { /* ignore */ }
+}
+
+function fillInfoCard(el, country) {
+  const info = CDATA[country.c] || {};
+  const fact = facts[country.c] || "A wonderful place to explore!";
+  el.innerHTML =
+    '<div class="info-card">' +
+      '<div class="info-row">' +
+        (info.cap ? '<span class="info-pill">🏛️ ' + info.cap + '</span>' : '') +
+        (info.cont ? '<span class="info-pill">' + (CONT_EMOJI2[info.cont] || "🌍") + ' ' + info.cont + '</span>' : '') +
+        '<button class="speak-btn" title="Say it">🔊</button>' +
+      '</div>' +
+      '<div class="info-fact">💡 ' + fact + '</div>' +
+    '</div>';
+  const sb = el.querySelector(".speak-btn");
+  if (sb) sb.addEventListener("click", () => speakCountry(country));
+}
+
+// ---- Badges ----
+const BADGES = [
+  { id:"first",   icon:"🌱", name:"First Steps",     test:() => collected.size >= 1,  desc:"Discover your first country" },
+  { id:"ten",     icon:"🔟", name:"Globe Trotter",   test:() => collected.size >= 10, desc:"Discover 10 countries" },
+  { id:"fifty",   icon:"🌍", name:"World Wanderer",  test:() => collected.size >= 50, desc:"Discover 50 countries" },
+  { id:"all",     icon:"🏆", name:"Master Explorer", test:() => collected.size >= 195, desc:"Discover every country" },
+  { id:"streak5", icon:"🔥", name:"On Fire",         test:() => best >= 5,  desc:"Get a 5 quiz streak" },
+  { id:"streak10",icon:"⚡", name:"Unstoppable",     test:() => best >= 10, desc:"Get a 10 quiz streak" },
+  { id:"quiz25",  icon:"🧠", name:"Quiz Whiz",       test:() => stat.quizWins >= 25, desc:"Win 25 quiz questions" },
+  { id:"slide",   icon:"🀄", name:"Puzzle Pro",      test:() => stat.slideClears >= 1, desc:"Clear a Slide board" },
+  { id:"lvl5",    icon:"⭐", name:"Rising Star",     test:() => levelInfo().lvl >= 5, desc:"Reach Level 5" },
+  { id:"lvl10",   icon:"💫", name:"Superstar",       test:() => levelInfo().lvl >= 10, desc:"Reach Level 10" },
+  { id:"week",    icon:"📅", name:"Daily Explorer",  test:() => (stat.daysSeen||[]).length >= 7, desc:"Visit 7 different days" }
+];
+function checkBadges() {
+  let newly = [];
+  BADGES.forEach((b) => { if (!stat.earned.includes(b.id) && b.test()) { stat.earned.push(b.id); newly.push(b); } });
+  if (newly.length) { persist(); newly.forEach((b) => toast("🏅 Badge: " + b.name + "!", 3500)); spawnConfetti(); }
+  if (document.getElementById("panel-badges").classList.contains("active")) renderBadges();
+}
+function renderBadges() {
+  const grid = document.getElementById("badgeGrid");
+  const got = stat.earned.length;
+  document.getElementById("badgesHead").textContent = "🏅 Badges: " + got + " / " + BADGES.length;
+  grid.innerHTML = "";
+  BADGES.forEach((b) => {
+    const has = stat.earned.includes(b.id);
+    const d = document.createElement("div");
+    d.className = "badge" + (has ? " got" : "");
+    d.innerHTML = '<div class="badge-ico">' + (has ? b.icon : "🔒") + '</div><div class="badge-nm">' + b.name + '</div><div class="badge-ds">' + b.desc + '</div>';
+    grid.appendChild(d);
+  });
+}
+
+// ---- Country of the Day (deterministic from date, offline-friendly) ----
+function todayKey() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate(); }
+function dayHash(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return Math.abs(h); }
+function renderToday() {
+  const key = todayKey();
+  const country = countries[dayHash(key) % countries.length];
+  const info = CDATA[country.c] || {};
+  const card = document.getElementById("todayCard");
+  card.innerHTML =
+    '<div class="today-flag"><img src="' + flagSrc(country) + '" alt=""></div>' +
+    '<div class="today-name">' + country.n + ' <button class="speak-btn" title="Say it">🔊</button></div>' +
+    '<div class="info-row" style="justify-content:center">' +
+      (info.cap ? '<span class="info-pill">🏛️ ' + info.cap + '</span>' : '') +
+      (info.cont ? '<span class="info-pill">' + (CONT_EMOJI2[info.cont] || "🌍") + ' ' + info.cont + '</span>' : '') +
+    '</div>' +
+    '<div class="info-fact">💡 ' + (facts[country.c] || "A wonderful place!") + '</div>' +
+    '<div class="today-shape"><img src="' + shapeSrc(country) + '" alt=""></div>';
+  card.querySelector(".speak-btn").addEventListener("click", () => speakCountry(country));
+  // mark this day visited (for the Daily Explorer badge) + small reward once/day
+  if (stat.lastDay !== key) {
+    stat.lastDay = key;
+    if (!stat.daysSeen.includes(key)) stat.daysSeen.push(key);
+    collect(country);
+    addStar(2);   // daily bonus
+    persist();
+  }
+}
+
+// ---- Start (after all feature data/functions are defined) ----
+loadSave();
+renderScore();
+checkBadges();
+
 const byCont = {}; CONTS.forEach((k) => { byCont[k] = []; });
 Object.keys(MAPDATA.cont).forEach((code) => { const k = MAPDATA.cont[code]; if (byCont[k]) byCont[k].push(code); });
 
@@ -1362,6 +1527,7 @@ atlasLoad();
     win.innerHTML = "🏆🎉<br>You cleared the board!<br><button class='action draw-btn' style='margin-top:10px'>Play again</button>";
     board.appendChild(win);
     win.querySelector("button").addEventListener("click", newBoard);
+    stat.slideClears = (stat.slideClears || 0) + 1; addStar(5); persist(); checkBadges();
     spawnConfetti(); playCheer();
   }
 
