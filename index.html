@@ -286,8 +286,9 @@
   /* ===== Memory (flag concentration) ===== */
   #panel-memory { display: none; } #panel-memory.active { display: flex; flex-direction: column; height: 100%; }
   .mem-size { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; flex: 0 0 auto; }
-  .mem-board { flex: 1 1 auto; min-height: 0; display: grid; gap: 6px; align-content: center; justify-content: center; padding: 4px; }
+  .mem-board { flex: 1 1 auto; min-height: 0; width: 100%; display: grid; gap: 8px; align-content: center; justify-items: stretch; padding: 4px; }
   .mem-card { position: relative; aspect-ratio: 4 / 3; cursor: pointer; perspective: 600px; }
+  .mem-back { font-size: 2rem; }
   .mem-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.35s; }
   .mem-card.flipped .mem-inner, .mem-card.matched .mem-inner { transform: rotateY(180deg); }
   .mem-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
@@ -1640,7 +1641,7 @@ atlasLoad();
     first = null; lock = false; matched = 0; moves = 0;
     const cols = layout(pairs);
     board.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
-    board.style.maxWidth = (cols * 86) + "px";
+    board.style.maxWidth = (cols * 130) + "px";
     board.style.margin = "0 auto 10px";
     board.innerHTML = "";
     deck.forEach((card) => {
