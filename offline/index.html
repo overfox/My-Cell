@@ -51,6 +51,12 @@
     text-align: center;
     display: flex; flex-direction: column;
     overflow: hidden;
+    position: relative;
+  }
+  .app-mascot {
+    position: absolute; top: 8px; right: 10px; width: 44px; height: 44px;
+    border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    object-fit: cover; z-index: 20;
   }
   h1 {
     margin: 0 0 8px;
@@ -302,6 +308,7 @@
 </head>
 <body>
   <div class="card">
+    <img class="app-mascot" id="appMascot" src="./icon-192.png" alt="Limo">
     <h1>🌍 Limo's World 🚀</h1>
 
     <div class="scoreboard">
