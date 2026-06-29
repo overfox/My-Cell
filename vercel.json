@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": { "api/*.js": { "maxDuration": 10 } },
+  "redirects": [{ "source": "/", "destination": "/helm/", "permanent": false }]
+}

@@ -186,6 +186,9 @@
     <label>Tax jurisdiction pack</label>
     <select id="s-jur"></select>
     <div style="height:10px"></div>
+    <label>Data proxy URL (blank = /api on this host)</label>
+    <input id="s-api" placeholder="/api  or  https://your-app.vercel.app/api">
+    <div style="height:10px"></div>
     <div class="row">
       <div><label>Short-term rate %</label><input id="s-stcg" type="number" step="any"></div>
       <div><label>Long-term rate %</label><input id="s-ltcg" type="number" step="any"></div>
@@ -226,6 +229,16 @@ const fmt = (n,d=2)=> (n==null||isNaN(n))?'—':n.toLocaleString(undefined,{mini
 const money = (n,ccy)=> (n==null||isNaN(n))?'—':(n<0?'-':'')+ (ccy||State.base?'':'') + new Intl.NumberFormat(undefined,{style:'currency',currency:ccy||State.base,maximumFractionDigits:2}).format(Math.abs(n));
 const pct = n => (n==null||isNaN(n))?'—':(n>=0?'+':'')+n.toFixed(2)+'%';
 const cls = n => n>0?'pos':n<0?'neg':'muted';
+/* convert an amount in `ccy` to the base currency using cached FX (parity if unknown) */
+function toBase(amt, ccy){
+  if(amt==null) return null;
+  ccy=(ccy||State.base).toUpperCase();
+  if(ccy===State.base) return amt;
+  const f=State.fx[ccy+State.base]; if(f&&f.rate) return amt*f.rate;
+  const inv=State.fx[State.base+ccy]; if(inv&&inv.rate) return amt/inv.rate;
+  return amt; // unknown rate -> assume parity (surfaced via fxMissing)
+}
+function fxMissing(ccy){ ccy=(ccy||State.base).toUpperCase(); if(ccy===State.base) return false; return !(State.fx[ccy+State.base]||State.fx[State.base+ccy]); }
 const todayISO = ()=> new Date().toISOString().slice(0,10);
 const daysBetween = (a,b)=> Math.floor((new Date(b)-new Date(a))/86400000);
 const uid = ()=> 'x'+Math.random().toString(36).slice(2,9);
@@ -254,13 +267,15 @@ const DEFAULT_STATE = () => ({
   lotMethod:'FIFO',
   jurisdiction:'generic',
   taxOverride:{},          // {stcg,ltcg,ltDays,wash} overrides on the pack
+  apiBase:'/api',          // Phase-2 serverless data proxy (blank '/api' = same host)
   txns:[],                 // transactions (lots derive from these)
   prices:{},               // symbol -> {price, ccy, asOf, src}
   history:{},              // symbol -> [closes] (most recent last) for regime
+  fx:{},                   // 'EURUSD' -> {rate, asOf}  (currency+base key)
   targets:{}               // assetClass -> target weight %
 });
 
-let State = DB.load() || DEFAULT_STATE();
+let State = Object.assign(DEFAULT_STATE(), DB.load() || {});  // merge so older saves get new fields
 
 function taxRules(){
   const p = JURISDICTIONS[State.jurisdiction] || JURISDICTIONS.generic;
@@ -275,59 +290,74 @@ function taxRules(){
    route through the Phase-2 serverless proxy; here we degrade to manual.
    ============================================================================ */
 const Providers = {
-  /* CoinGecko: CORS-enabled, free, no key — great for crypto quotes+history */
-  coingecko:{
-    classes:['crypto'],
-    map:{btc:'bitcoin',eth:'ethereum',sol:'solana',ada:'cardano',xrp:'ripple',doge:'dogecoin',bnb:'binancecoin',usdt:'tether',usdc:'usd-coin',matic:'matic-network',dot:'polkadot',ltc:'litecoin',link:'chainlink',avax:'avalanche-2'},
-    id(sym){ return this.map[sym.toLowerCase()] || sym.toLowerCase(); },
-    async quote(sym,ccy){
-      const id=this.id(sym), c=(ccy||'usd').toLowerCase();
+  proxyUp:null,                              // null=unknown, true/false after a call
+  base(){ return (State.apiBase||'/api').replace(/\/$/,''); },
+  _cgMap:{btc:'bitcoin',eth:'ethereum',sol:'solana',ada:'cardano',xrp:'ripple',doge:'dogecoin',bnb:'binancecoin',usdt:'tether',usdc:'usd-coin',matic:'matic-network',dot:'polkadot',ltc:'litecoin',link:'chainlink',avax:'avalanche-2'},
+  _cgId(s){ return this._cgMap[s.toLowerCase()] || s.toLowerCase(); },
+
+  async _proxy(path){
+    const r=await fetch(this.base()+path);
+    if(!r.ok) throw new Error('proxy '+r.status);
+    const j=await r.json();
+    if(j&&j.offline) throw new Error('offline');
+    if(j&&j.error) throw new Error(j.error);
+    return j;
+  },
+
+  /* quote: serverless proxy first (equities/FX work without CORS), then a
+     direct client fallback (crypto via CoinGecko works; equities can't be
+     fetched cross-origin from a browser, so they need the proxy). */
+  async quote(sym,assetClass,ccy){
+    try{
+      const j=await this._proxy(`/quote?symbol=${encodeURIComponent(sym)}&class=${assetClass}&ccy=${encodeURIComponent(ccy||State.base)}`);
+      this.proxyUp=true;
+      return {price:j.price, ccy:(j.ccy||ccy||'USD').toUpperCase(), asOf:j.asOf||Date.now(), src:j.src||'proxy'};
+    }catch(e){ this.proxyUp=false; }
+    if(assetClass==='crypto'){
+      const id=this._cgId(sym), c=(ccy||'usd').toLowerCase();
       const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${c}`);
       const j=await r.json(); const p=j[id]&&j[id][c];
       if(p==null) throw new Error('no price');
-      return {price:p, ccy:(ccy||'USD').toUpperCase(), asOf:Date.now(), src:'coingecko'};
-    },
-    async history(sym,ccy,days=120){
-      const id=this.id(sym), c=(ccy||'usd').toLowerCase();
-      const r=await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=${c}&days=${days}&interval=daily`);
-      const j=await r.json();
-      return (j.prices||[]).map(p=>p[1]);
+      return {price:p, ccy:(ccy||'USD').toUpperCase(), asOf:Date.now(), src:'coingecko*'};
     }
+    throw new Error('needs proxy');           // deploy /api to price this asset class
   },
-  /* Yahoo chart: best-effort from browser (often CORS-blocked). The serverless
-     layer will front this in Phase 2. Failure is non-fatal — we fall back to
-     the last manual/cached price so the app always works offline. */
-  yahoo:{
-    classes:['equity','etf','forex','bond','option'],
-    async quote(sym){
-      const r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`);
-      const j=await r.json(); const m=j.chart&&j.chart.result&&j.chart.result[0].meta;
-      if(!m||m.regularMarketPrice==null) throw new Error('no price');
-      return {price:m.regularMarketPrice, ccy:m.currency||'USD', asOf:Date.now(), src:'yahoo'};
-    },
-    async history(sym){
-      const r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=6mo&interval=1d`);
-      const j=await r.json(); const q=j.chart.result[0].indicators.quote[0].close;
-      return (q||[]).filter(x=>x!=null);
+
+  async history(sym,assetClass,ccy){
+    try{ const j=await this._proxy(`/history?symbol=${encodeURIComponent(sym)}&class=${assetClass}&range=6mo&interval=1d`); return j.closes||[]; }catch(e){}
+    if(assetClass==='crypto'){
+      const id=this._cgId(sym), c=(ccy||'usd').toLowerCase();
+      const r=await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=${c}&days=120&interval=daily`);
+      const j=await r.json(); return (j.prices||[]).map(p=>p[1]);
     }
+    return [];
   },
-  pick(assetClass){
-    if(assetClass==='crypto') return this.coingecko;
-    return this.yahoo;
+
+  async fxRate(from,to){
+    if(from===to) return 1;
+    try{ const j=await this._proxy(`/fx?from=${from}&to=${to}`); return j.rate; }catch(e){}
+    return null;
   },
+
+  async search(q){
+    try{ const j=await this._proxy(`/search?q=${encodeURIComponent(q)}`); return j.results||[]; }catch(e){ return []; }
+  },
+
   async refresh(symbols){
     let ok=0,fail=0;
     for(const {symbol,assetClass,ccy} of symbols){
       try{
-        const p=Providers.pick(assetClass);
-        const q=await p.quote(symbol,ccy);
+        const q=await this.quote(symbol,assetClass,ccy);
         State.prices[symbol]=q;
-        try{ State.history[symbol]= await p.history(symbol,ccy); }catch(e){}
+        try{ const h=await this.history(symbol,assetClass,ccy); if(h&&h.length) State.history[symbol]=h; }catch(e){}
         ok++;
       }catch(e){ fail++; }
     }
+    // refresh FX for any non-base currency we actually hold (using the price ccy)
+    const ccys=new Set(symbols.map(s=>(State.prices[s.symbol]&&State.prices[s.symbol].ccy)||s.ccy).filter(Boolean));
+    for(const c of ccys){ if(c&&c!==State.base){ const r=await this.fxRate(c,State.base); if(r!=null) State.fx[c+State.base]={rate:r,asOf:Date.now()}; } }
     DB.save(State);
-    return {ok,fail};
+    return {ok,fail,proxy:this.proxyUp};
   }
 };
 
@@ -437,24 +467,29 @@ const Portfolio = {
     return Object.values(bySym).filter(p=>p.qty>1e-9).map(p=>{
       const q=State.prices[p.symbol];
       const price=q?q.price:null;
-      const mv= price!=null? p.qty*price : null;
+      const priceCcy=q?q.ccy:p.ccy;                  // value is quoted in the price's ccy
+      const mv= price!=null? p.qty*price : null;      // native (price ccy)
       const unreal= mv!=null? mv-p.cost : null;
       const ret= (mv!=null&&p.cost>0)? (unreal/p.cost*100):null;
-      return {...p, price, mv, unreal, ret, avgCost:p.qty?p.cost/p.qty:0, src:q?q.src:null, asOf:q?q.asOf:null};
-    }).sort((a,b)=> (b.mv||0)-(a.mv||0));
+      const mvBase= toBase(mv, priceCcy);             // converted to base for totals/weights
+      const costBase= toBase(p.cost, p.ccy);
+      return {...p, price, priceCcy, mv, mvBase, costBase, unreal, ret,
+              avgCost:p.qty?p.cost/p.qty:0, src:q?q.src:null, asOf:q?q.asOf:null};
+    }).sort((a,b)=> (b.mvBase||0)-(a.mvBase||0));
   },
   totals(){
     const ps=this.positions();
-    const mv=ps.reduce((x,p)=>x+(p.mv||0),0);
-    const cost=ps.reduce((x,p)=>x+p.cost,0);
+    const mv=ps.reduce((x,p)=>x+(p.mvBase||0),0);
+    const cost=ps.reduce((x,p)=>x+(p.costBase||0),0);
     const priced=ps.filter(p=>p.mv!=null);
+    const fxGaps=ps.some(p=> p.mv!=null && fxMissing(p.priceCcy));
     return {value:mv, cost, unreal:mv-cost, ret: cost>0?((mv-cost)/cost*100):null,
-            positions:ps.length, pricedFrac: ps.length? priced.length/ps.length : 1};
+            positions:ps.length, pricedFrac: ps.length? priced.length/ps.length : 1, fxGaps};
   },
   allocation(){
-    const ps=this.positions(); const tot=ps.reduce((x,p)=>x+(p.mv||0),0)||1;
+    const ps=this.positions(); const tot=ps.reduce((x,p)=>x+(p.mvBase||0),0)||1;
     const byClass={};
-    ps.forEach(p=>{ byClass[p.assetClass]=(byClass[p.assetClass]||0)+(p.mv||0); });
+    ps.forEach(p=>{ byClass[p.assetClass]=(byClass[p.assetClass]||0)+(p.mvBase||0); });
     return Object.entries(byClass).map(([k,v])=>({label:k, value:v, weight:v/tot*100}))
       .sort((a,b)=>b.value-a.value);
   }
@@ -486,8 +521,8 @@ const Signals = {
   },
   portfolioRegime(){
     // weight each position's regime by market value; reduce to a headline
-    const ps=Portfolio.positions(); const tot=ps.reduce((x,p)=>x+(p.mv||0),0)||1;
-    const rows=ps.map(p=>({symbol:p.symbol, w:(p.mv||0)/tot, ...this.regimeOf(State.history[p.symbol])}));
+    const ps=Portfolio.positions(); const tot=ps.reduce((x,p)=>x+(p.mvBase||0),0)||1;
+    const rows=ps.map(p=>({symbol:p.symbol, w:(p.mvBase||0)/tot, ...this.regimeOf(State.history[p.symbol])}));
     const score={bull:1,chop:0,bear:-1,crisis:-1.5,unknown:0};
     const net=rows.reduce((x,r)=>x+ (score[r.state]||0)*r.w,0);
     const head= net>0.4?'bull': net<-0.6?'crisis': net<-0.2?'bear':'chop';
@@ -540,7 +575,8 @@ function renderDash(){
     ['Positions', t.positions, ''],
   ];
   kpis.forEach(([l,v,c])=>{const p=el('div','panel kpi');p.innerHTML=`<div class="l">${l}</div><div class="v ${c}">${v}</div>`;$('#kpis').appendChild(p);});
-  if(t.pricedFrac<1){ const w=el('div','src');w.style.marginTop='6px';w.textContent=`${Math.round(t.pricedFrac*100)}% of positions priced — tap ↻ Prices on Holdings (some equity feeds need the Phase-2 proxy).`;$('#kpis').appendChild(w);}
+  if(t.pricedFrac<1){ const w=el('div','src');w.style.marginTop='6px';w.textContent=`${Math.round(t.pricedFrac*100)}% of positions priced — tap ↻ Prices on Holdings (deploy /api proxy to price equities without CORS).`;$('#kpis').appendChild(w);}
+  if(t.fxGaps){ const w=el('div','src');w.style.marginTop='4px';w.textContent='Some holdings are in a non-base currency without an FX rate yet — refresh prices (needs the /api proxy) to convert accurately.';$('#kpis').appendChild(w);}
 
   // regime
   const reg=Signals.portfolioRegime();
@@ -593,8 +629,8 @@ function renderHoldings(){
       `<td><b>${p.symbol}</b> ${p.src?`<span class="src">${p.src}</span>`:''}</td>
        <td><span class="tag">${p.assetClass}</span></td>
        <td>${fmt(p.qty,4)}</td><td>${money(p.avgCost,p.ccy)}</td>
-       <td>${p.price==null?'—':money(p.price,p.ccy)}</td>
-       <td>${money(p.mv)}</td>
+       <td>${p.price==null?'—':money(p.price,p.priceCcy)}</td>
+       <td>${p.mv==null?'—':money(p.mv,p.priceCcy)}</td>
        <td class="${cls(p.unreal)}">${p.unreal==null?'—':money(p.unreal)}</td>
        <td class="${cls(p.ret)}">${pct(p.ret)}</td>`;
       pp.appendChild(tr);});
@@ -672,7 +708,9 @@ function renderPlan(){
 }
 
 function renderAll(){renderDash();renderHoldings();renderTax();renderPlan();updatePill();}
-function updatePill(){const online=navigator.onLine;const t=Portfolio.totals();$('#dataPill').textContent=`${online?'online':'offline'} · ${t.positions} pos`;}
+function updatePill(){const online=navigator.onLine;const t=Portfolio.totals();
+  const prox=Providers.proxyUp===true?'proxy':Providers.proxyUp===false?'direct':'no feed';
+  $('#dataPill').textContent=`${online?'online':'offline'} · ${prox} · ${t.positions} pos`;}
 
 /* ---------- events ------------------------------------------------------- */
 function switchView(v){
@@ -694,12 +732,14 @@ function openSettings(){
   $('#s-base').value=State.base;$('#s-lot').value=State.lotMethod;
   const js=$('#s-jur');js.innerHTML='';Object.entries(JURISDICTIONS).forEach(([k,v])=>{const o=el('option');o.value=k;o.textContent=v.name;js.appendChild(o);});
   js.value=State.jurisdiction;
+  $('#s-api').value=(State.apiBase&&State.apiBase!=='/api')?State.apiBase:'';
   const r=taxRules();$('#s-stcg').value=r.stcg;$('#s-ltcg').value=r.ltcg;$('#s-lt').value=r.ltDays;$('#s-wash').value=r.wash;
   $('#setModal').classList.add('show');
 }
 function saveSettings(){
   State.base=$('#s-base').value.trim().toUpperCase()||'USD';
   State.lotMethod=$('#s-lot').value;State.jurisdiction=$('#s-jur').value;
+  State.apiBase=$('#s-api').value.trim()||'/api';
   State.taxOverride={stcg:parseFloat($('#s-stcg').value),ltcg:parseFloat($('#s-ltcg').value),
                      ltDays:parseInt($('#s-lt').value),wash:parseInt($('#s-wash').value)};
   DB.save(State);$('#setModal').classList.remove('show');renderAll();toast('Settings saved');
@@ -710,7 +750,8 @@ async function refreshPrices(){
   toast('Fetching prices…');
   const res=await Providers.refresh(ps.map(p=>({symbol:p.symbol,assetClass:p.assetClass,ccy:p.ccy})));
   renderAll();
-  toast(`Priced ${res.ok}/${ps.length}${res.fail?` · ${res.fail} need proxy`:''}`);
+  const via=res.proxy===true?'via proxy':res.proxy===false?'direct (no proxy)':'';
+  toast(`Priced ${res.ok}/${ps.length} ${via}${res.fail?` · ${res.fail} need /api proxy`:''}`);
 }
 
 /* ---------- demo data ---------------------------------------------------- */
