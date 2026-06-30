@@ -94,6 +94,9 @@
   <section class="view active" id="view-dash">
     <div class="grid cards" id="kpis"></div>
 
+    <div class="section-h"><h2>Recommended actions</h2><span class="sub">ranked · tax-aware</span></div>
+    <div class="panel" id="recTop"></div>
+
     <div class="section-h"><h2>Market regime</h2><span class="sub">trend × volatility, from price history</span></div>
     <div class="panel" id="regimePanel"></div>
 
@@ -135,10 +138,24 @@
 
   <!-- PLAN -->
   <section class="view" id="view-plan">
+    <div class="section-h"><h2>Recommendations</h2><span class="sub">full ranked list with lot plans</span></div>
+    <div class="panel" id="recPanel"></div>
     <div class="section-h"><h2>Plan &amp; rebalance</h2><span class="sub">target allocation drift</span></div>
     <div class="panel" id="planPanel"></div>
-    <div class="section-h"><h2>Strategy lab</h2><span class="sub">Phase-3 — backtest &amp; execution dev</span></div>
-    <div class="panel"><div class="empty">Rule backtesting, paper trading and tax-aware execution planning arrive in Phase 3. The data + tax engines below already expose the hooks they need.</div></div>
+    <div class="section-h"><h2>Strategy lab</h2><span class="sub">backtest on cached daily closes · no lookahead</span></div>
+    <div class="panel" id="btPanel">
+      <div class="row">
+        <div><label>Symbol</label><select id="bt-symbol"></select></div>
+        <div><label>Strategy</label><select id="bt-strat">
+          <option value="buyhold">Buy &amp; hold</option>
+          <option value="sma">SMA crossover</option>
+          <option value="momentum">Momentum</option></select></div>
+        <div><label id="bt-l1">Fast</label><input id="bt-p1" type="number" value="10"></div>
+        <div><label id="bt-l2">Slow</label><input id="bt-p2" type="number" value="30"></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="primary" id="bt-run">Backtest</button></div>
+      </div>
+      <div id="btResult"></div>
+    </div>
   </section>
 </div>
 
@@ -579,6 +596,139 @@ const Plan = {
 };
 
 /* ============================================================================
+   DECIDE — fuse every engine into ranked, tax-aware recommendations
+   Consumes Portfolio + Tax + Signals(regime) + macro + sentiment + Plan drift
+   and emits concrete actions with a specific lot plan and estimated tax impact.
+   ============================================================================ */
+const Decide = {
+  ccyOf(sym){ return (State.prices[sym]&&State.prices[sym].ccy)||State.base; },
+
+  /* choose the tax-optimal lots to sell for a target base-currency value:
+     realize losses first (harvest), then long-term gains, then short-term. */
+  lotPlan(filterFn, targetBaseValue){
+    let lots=Tax.openLots().filter(l=>l.price!=null && filterFn(l))
+      .map(l=>({...l, gpu:l.price-l.costPerUnit, valBase:toBase(l.mv,this.ccyOf(l.symbol))}));
+    lots.sort((a,b)=>{
+      const aL=a.gpu<0, bL=b.gpu<0;
+      if(aL!==bL) return aL?-1:1;                 // losses before gains
+      if(aL&&bL) return a.gpu-b.gpu;              // biggest loss first
+      if(a.longTerm!==b.longTerm) return a.longTerm?-1:1;  // long-term gains before short
+      return a.gpu-b.gpu;                          // smaller gain first
+    });
+    const chosen=[]; let rem=targetBaseValue, gain=0, tax=0;
+    const r=taxRules();
+    for(const l of lots){
+      if(rem<=0.01) break;
+      const unitBase=l.valBase/l.qty;
+      const take=Math.min(l.qty, rem/unitBase);
+      if(take<=1e-9) continue;
+      const g=(l.price-l.costPerUnit)*take;       // native ccy gain
+      const gBase=toBase(g,this.ccyOf(l.symbol));
+      const t=gBase>0?gBase*((l.longTerm?r.ltcg:r.stcg)/100):0;
+      chosen.push({symbol:l.symbol, qty:take, term:l.longTerm?'long':'short', gainBase:gBase, wash:l.wash});
+      gain+=gBase; tax+=t; rem-=take*unitBase;
+    }
+    return {chosen, gainBase:gain, taxBase:tax};
+  },
+
+  recommendations(){
+    const recs=[];
+    const ps=Portfolio.positions();
+    const totV=Portfolio.totals().value||1;
+    const reg=Signals.portfolioRegime();
+    const symReg={}; reg.rows.forEach(r=>symReg[r.symbol]=r.state);
+    const macro=State.macro, sent=State.sentiment||{};
+    const sLabel=s=>sent[s]&&sent[s].label, sScore=s=>(sent[s]&&sent[s].score)||0;
+
+    // 1) tax-loss harvesting
+    Tax.harvest().forEach(l=>{
+      const vBase=toBase(l.mv,this.ccyOf(l.symbol));
+      if(l.wash){ recs.push({cat:'tax', action:'Hold — wash-sale risk', symbol:l.symbol, valueBase:vBase, priority:32,
+        rationale:['Underwater lot, but a recent buy may trigger a wash sale','Wait past the window or harvest a different lot'], taxImpact:0}); return; }
+      let pri=46 + Math.min(38, (l.benefit/totV)*4000);
+      const r=[`Realize ${money(l.unreal)} loss`, `~${money(l.benefit)} est. tax saved`, l.longTerm?'long-term lot':'short-term lot'];
+      if(sLabel(l.symbol)==='bearish'){ pri+=8; r.push('news sentiment bearish — exit aligns'); }
+      if(symReg[l.symbol]==='bear'||symReg[l.symbol]==='crisis'){ pri+=6; r.push('weak price regime'); }
+      recs.push({cat:'tax', action:'Harvest loss', symbol:l.symbol, qty:l.qty, valueBase:vBase,
+        priority:Math.round(pri), rationale:r, taxImpact:-l.benefit});
+    });
+
+    // 2) rebalance toward targets (tax-aware on the sell side)
+    Plan.drift().forEach(d=>{
+      if(Math.abs(d.gap)<5) return;
+      const val=Math.abs(d.tradeValue);
+      if(d.gap>0){
+        const plan=this.lotPlan(l=>l.assetClass===d.label, val);
+        const r=[`${d.label} is ${fmt(d.gap,1)}% over target`, `trim ~${money(val)}`];
+        if(plan.taxBase>0) r.push(`est. tax on trim ~${money(plan.taxBase)}`);
+        if(plan.gainBase<0) r.push(`harvests ${money(plan.gainBase)} of losses`);
+        recs.push({cat:'rebalance', action:`Trim ${d.label}`, valueBase:val, priority:Math.round(40+Math.min(30,Math.abs(d.gap))),
+          rationale:r, lots:plan.chosen, taxImpact:-plan.taxBase});
+      } else {
+        let pri=38+Math.min(30,Math.abs(d.gap));
+        const r=[`${d.label} is ${fmt(Math.abs(d.gap),1)}% under target`, `add ~${money(val)}`];
+        if(macro&&!macro.error&&macro.score<-0.3&&(d.label==='equity'||d.label==='crypto')){ pri-=8; r.push('macro risk-off — phase in gradually'); }
+        recs.push({cat:'rebalance', action:`Add to ${d.label}`, valueBase:val, priority:Math.round(pri), rationale:r});
+      }
+    });
+
+    // 3) concentration risk
+    ps.forEach(p=>{
+      const w=(p.mvBase||0)/totV*100;
+      if(w>25){
+        const plan=this.lotPlan(l=>l.symbol===p.symbol, (w-20)/100*totV);
+        recs.push({cat:'risk', action:'Reduce concentration', symbol:p.symbol, valueBase:p.mvBase,
+          priority:Math.round(50+Math.min(30,w-25)),
+          rationale:[`${p.symbol} is ${fmt(w,1)}% of the portfolio`, 'single-name concentration risk', plan.taxBase>0?`est. tax ~${money(plan.taxBase)}`:'tax-efficient lots selected'],
+          lots:plan.chosen, taxImpact:-plan.taxBase});
+      }
+    });
+
+    // 4) macro + regime defensive overlay
+    if(macro&&!macro.error&&macro.score<-0.3 && (reg.head==='bear'||reg.head==='crisis')){
+      recs.push({cat:'macro', action:'Raise defensives / hedge', priority:64,
+        rationale:[`Macro ${macro.regime.replace(/-/g,' ')} (${macro.score.toFixed(2)}) + portfolio regime ${reg.head}`, 'consider cash/bonds/hedges and trimming high-beta names']});
+    }
+
+    // 5) sentiment-driven profit-taking
+    ps.forEach(p=>{
+      if(sLabel(p.symbol)==='bearish' && (p.unreal||0)>0 && (p.mvBase||0)/totV*100>5){
+        recs.push({cat:'sentiment', action:'Consider trimming', symbol:p.symbol, valueBase:p.mvBase,
+          priority:Math.round(42+Math.min(16,-sScore(p.symbol)*20)),
+          rationale:[`Bearish news sentiment on ${p.symbol}`, `sitting on a ${money(p.unreal)} gain — consider taking some profit`]});
+      }
+    });
+
+    return recs.sort((a,b)=>b.priority-a.priority);
+  }
+};
+
+/* ============================================================================
+   BACKTEST — strategy lab over cached daily closes (no lookahead)
+   ============================================================================ */
+const Backtest = {
+  _avg(a,i,k){ let s=0,c=0; for(let j=Math.max(0,i-k+1);j<=i;j++){ s+=a[j]; c++; } return s/c; },
+  run(symbol, strat, p){
+    const closes=State.history[symbol];
+    if(!closes||closes.length<30) return {error:'Need ~30+ days of price history — refresh prices first.'};
+    const n=closes.length, pos=new Array(n).fill(0);
+    if(strat==='buyhold') pos.fill(1);
+    else if(strat==='sma'){ const f=p.p1||10, s=p.p2||30;
+      for(let i=0;i<n;i++){ pos[i]= i<s?0:(this._avg(closes,i,f)>this._avg(closes,i,s)?1:0); } }
+    else if(strat==='momentum'){ const k=p.p1||20;
+      for(let i=0;i<n;i++){ pos[i]= (i>=k && closes[i]>closes[i-k])?1:0; } }
+    let eq=1, peak=1, maxdd=0; const rets=[], curve=[1], bh=[1];
+    for(let i=1;i<n;i++){ const r=closes[i]/closes[i-1]-1; const pr=pos[i-1]*r; eq*=1+pr;
+      rets.push(pr); curve.push(eq); peak=Math.max(peak,eq); maxdd=Math.min(maxdd,eq/peak-1); bh.push(closes[i]/closes[0]); }
+    const mean=rets.reduce((a,b)=>a+b,0)/rets.length;
+    const vol=Math.sqrt(rets.reduce((a,b)=>a+(b-mean)**2,0)/rets.length)*Math.sqrt(252)*100;
+    return { totalRet:(eq-1)*100, cagr:(Math.pow(eq,252/n)-1)*100, vol,
+      sharpe: vol? (mean*252)/(vol/100):0, maxdd:maxdd*100, bh:(closes[n-1]/closes[0]-1)*100,
+      exposure: pos.reduce((a,b)=>a+b,0)/n*100, curve, bhCurve:bh };
+  }
+};
+
+/* ============================================================================
    UI / rendering
    ============================================================================ */
 const COLORS={equity:'#4cc9f0',etf:'#9b8cff',crypto:'#ffb84d',option:'#ff5d73',forex:'#2ec27e',bond:'#8aa0c6'};
@@ -639,6 +789,64 @@ function renderDash(){
     d.innerHTML=`<span class="tag" style="border-color:${tone};color:${tone}">${h.kind}</span> ${h.text}`;
     sp.appendChild(d);
   });
+}
+
+const REC_COLOR={tax:'var(--green)',rebalance:'var(--blue)',risk:'var(--red)',macro:'var(--amber)',sentiment:'var(--purple)'};
+function renderRecos(){
+  const recs=Decide.recommendations();
+  [['#recTop',3],['#recPanel',99]].forEach(([sel,lim])=>{
+    const host=$(sel); host.innerHTML='';
+    if(!recs.length){ host.innerHTML='<div class="empty">No actions needed — portfolio is on target with no harvesting, concentration or risk flags.</div>'; return; }
+    recs.slice(0,lim).forEach(r=>{
+      const col=REC_COLOR[r.cat]||'var(--dim)';
+      const card=el('div'); card.style.cssText=`padding:10px 12px;border-left:3px solid ${col};margin-bottom:8px;background:rgba(255,255,255,.02);border-radius:0 10px 10px 0`;
+      let h=`<div class="flex" style="justify-content:space-between"><div><span class="tag" style="border-color:${col};color:${col}">${r.cat}</span> <b>${r.action}</b>${r.symbol?` · ${r.symbol}`:''}</div>`+
+            `<span class="src">P${r.priority}${r.valueBase?` · ${money(r.valueBase)}`:''}</span></div>`;
+      h+=`<div class="muted" style="font-size:.82rem;margin-top:4px">${r.rationale.filter(Boolean).join(' · ')}</div>`;
+      if(r.lots&&r.lots.length){
+        h+=`<div class="src" style="margin-top:5px">Lot plan: `+r.lots.map(l=>`sell ${fmt(l.qty,2)} ${l.symbol} <span class="tag ${l.term==='long'?'lt':'st'}">${l.term}</span>${l.wash?' <span class="tag wash">wash?</span>':''} (${l.gainBase>=0?'+':''}${money(l.gainBase)})`).join(' · ')+`</div>`;
+      }
+      if(r.taxImpact){ const t=r.taxImpact; h+=`<div class="src" style="margin-top:3px;color:${t>0?'var(--green)':'var(--amber)'}">Est. tax impact: ${t>0?'saves ':''}${money(Math.abs(t))}${t>0?'':' owed'}</div>`; }
+      card.innerHTML=h; host.appendChild(card);
+    });
+    if(recs.length>lim) { const m=el('div','src'); m.style.marginTop='4px'; m.textContent=`+${recs.length-lim} more in the Plan tab`; host.appendChild(m); }
+  });
+}
+
+function renderBacktestControls(){
+  const sel=$('#bt-symbol'); const cur=sel.value;
+  const syms=Object.keys(State.history||{}).filter(s=>State.history[s]&&State.history[s].length>=30);
+  sel.innerHTML=''; syms.forEach(s=>{const o=el('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  if(syms.includes(cur)) sel.value=cur;
+  syncBtLabels();
+}
+function syncBtLabels(){
+  const strat=$('#bt-strat').value;
+  $('#bt-l1').textContent= strat==='momentum'?'Lookback':'Fast';
+  $('#bt-l2').parentElement.style.display= strat==='sma'?'':'none';
+}
+function runBacktest(){
+  const sym=$('#bt-symbol').value, strat=$('#bt-strat').value;
+  const r=Backtest.run(sym, strat, {p1:parseInt($('#bt-p1').value), p2:parseInt($('#bt-p2').value)});
+  const box=$('#btResult'); box.innerHTML='';
+  if(r.error){ box.innerHTML=`<div class="empty">${r.error}</div>`; return; }
+  const tb=el('table'); tb.innerHTML='<tr><th>Metric</th><th>Strategy</th><th>Buy &amp; hold</th></tr>';
+  [['Total return',pct(r.totalRet),pct(r.bh)],['CAGR',pct(r.cagr),'—'],['Volatility (ann.)',fmt(r.vol,1)+'%','—'],
+   ['Sharpe',fmt(r.sharpe,2),'—'],['Max drawdown',pct(r.maxdd),'—'],['Time in market',fmt(r.exposure,0)+'%','100%']]
+   .forEach(([k,a,b])=>{const tr=el('tr');tr.innerHTML=`<td>${k}</td><td class="${a&&a[0]==='-'?'neg':'pos'}">${a}</td><td>${b}</td>`;tb.appendChild(tr);});
+  box.appendChild(spark(r.curve, r.bhCurve)); box.appendChild(tb);
+  const beat=r.totalRet>r.bh; const note=el('div','src'); note.style.marginTop='6px';
+  note.textContent= `${beat?'Beat':'Lagged'} buy & hold by ${fmt(Math.abs(r.totalRet-r.bh),1)} pts over ${State.history[sym].length} days. Past performance ≠ future results.`;
+  box.appendChild(note);
+}
+function spark(a,b){
+  const w=300,h=54,pad=3, all=a.concat(b||[]), lo=Math.min(...all), hi=Math.max(...all), rng=(hi-lo)||1;
+  const path=arr=>arr.map((v,i)=>`${(i/(arr.length-1))*(w-2*pad)+pad},${h-pad-((v-lo)/rng)*(h-2*pad)}`).join(' ');
+  const ns='http://www.w3.org/2000/svg'; const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.setAttribute('width','100%'); svg.style.marginTop='8px';
+  const mk=(pts,c,wd)=>{const p=document.createElementNS(ns,'polyline');p.setAttribute('points',pts);p.setAttribute('fill','none');p.setAttribute('stroke',c);p.setAttribute('stroke-width',wd);svg.appendChild(p);};
+  if(b) mk(path(b),'#5b6f93',1.2); mk(path(a),'#4cc9f0',1.8);
+  return svg;
 }
 
 function renderMacro(){
@@ -763,7 +971,7 @@ function renderPlan(){
   pp.querySelectorAll('[data-tgt]').forEach(inp=>inp.onchange=()=>{State.targets[inp.dataset.tgt]=parseFloat(inp.value)||0;DB.save(State);renderPlan();renderDash();});
 }
 
-function renderAll(){renderDash();renderHoldings();renderTax();renderPlan();updatePill();}
+function renderAll(){renderDash();renderRecos();renderHoldings();renderTax();renderPlan();renderBacktestControls();updatePill();}
 function updatePill(){const online=navigator.onLine;const t=Portfolio.totals();
   const prox=Providers.proxyUp===true?'proxy':Providers.proxyUp===false?'direct':'no feed';
   $('#dataPill').textContent=`${online?'online':'offline'} · ${prox} · ${t.positions} pos`;}
@@ -849,6 +1057,8 @@ function init(){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
   $('#btnAddTxn').onclick=openTxn;$('#t-cancel').onclick=()=>$('#txnModal').classList.remove('show');$('#t-save').onclick=saveTxn;
   $('#btnRefresh').onclick=refreshPrices;
+  $('#bt-run').onclick=runBacktest;
+  $('#bt-strat').onchange=syncBtLabels;
   $('#btnSettings').onclick=openSettings;$('#s-cancel').onclick=()=>$('#setModal').classList.remove('show');$('#s-save').onclick=saveSettings;
   $('#s-demo').onclick=()=>{loadDemo();$('#setModal').classList.remove('show');};
   $('#s-wipe').onclick=()=>{if(confirm('Erase all data?')){State=DEFAULT_STATE();DB.save(State);$('#setModal').classList.remove('show');renderAll();toast('Erased');}};
@@ -860,7 +1070,7 @@ function init(){
 document.addEventListener('DOMContentLoaded',init);
 
 /* expose engines for console/testing & the Phase-2/3 layers */
-return {State:()=>State, Tax, Portfolio, Signals, Plan, Providers, loadDemo};
+return {State:()=>State, Tax, Portfolio, Signals, Plan, Decide, Backtest, Providers, loadDemo};
 })();
 </script>
 </body>
