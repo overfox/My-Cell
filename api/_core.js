@@ -96,6 +96,78 @@ async function fx(from, to) {
   }
 }
 
+/* ---- Macro engine (FRED, free with key) -------------------------------- */
+const FRED = "https://api.stlouisfed.org/fred/series/observations";
+async function fredSeries(id, limit) {
+  const k = process.env.FRED_API_KEY;
+  if (!k) throw httpErr(501, "FRED_API_KEY not configured");
+  const j = await getJSON(`${FRED}?series_id=${id}&api_key=${k}&file_type=json&sort_order=desc&limit=${limit || 13}`);
+  return (j.observations || []).map((o) => ({ date: o.date, value: o.value === "." ? null : parseFloat(o.value) })).filter((o) => o.value != null);
+}
+async function macro() {
+  // latest-first series: 10y-2y spread, fed funds, CPI level, unemployment
+  const [curve, funds, cpi, unrate] = await Promise.all([
+    fredSeries("T10Y2Y", 5), fredSeries("FEDFUNDS", 13), fredSeries("CPIAUCSL", 14), fredSeries("UNRATE", 13),
+  ]);
+  const latest = (a) => (a[0] ? a[0].value : null);
+  const yoy = (a) => (a.length >= 13 && a[0] && a[12] ? (a[0].value / a[12].value - 1) * 100 : null);
+  const trend = (a, n) => (a.length > n ? a[0].value - a[n].value : null); // latest minus n-periods-ago
+  const ind = {
+    yieldCurve: latest(curve), fedFunds: latest(funds), fedFundsChg6m: trend(funds, 6),
+    inflationYoY: yoy(cpi), unemployment: latest(unrate), unemploymentChg6m: trend(unrate, 6),
+  };
+  let s = 0;
+  if (ind.yieldCurve != null) s += ind.yieldCurve < 0 ? -1 : ind.yieldCurve < 0.5 ? -0.3 : 0.3;
+  if (ind.fedFundsChg6m != null) s += ind.fedFundsChg6m > 0.25 ? -0.6 : ind.fedFundsChg6m < -0.25 ? 0.6 : 0;
+  if (ind.inflationYoY != null) s += ind.inflationYoY > 4 ? -0.6 : ind.inflationYoY > 3 ? -0.3 : ind.inflationYoY < 2 ? 0.2 : 0;
+  if (ind.unemploymentChg6m != null) s += ind.unemploymentChg6m > 0.3 ? -0.6 : ind.unemploymentChg6m < -0.1 ? 0.4 : 0;
+  const score = Math.max(-1, Math.min(1, s / 2));
+  const inverted = ind.yieldCurve != null && ind.yieldCurve < 0;
+  const hot = ind.inflationYoY != null && ind.inflationYoY > 4;
+  let regime;
+  if (score > 0.3) regime = "expansion";
+  else if (score < -0.4) regime = inverted ? "contraction" : "slowdown";
+  else regime = hot ? "stagflation-risk" : "late-cycle";
+  return { regime, score, indicators: ind, asOf: Date.now(), src: "fred" };
+}
+
+/* ---- Sentiment engine (keyless: news headlines + finance lexicon) ------ */
+const SENT_POS = "beat beats surge surges soar soars rally record growth upgrade upgraded outperform strong gain gains jumps jump rises rise boost bullish profit profits wins win breakthrough raises raise tops top expands optimistic recovery rebound buyback dividend".split(" ");
+const SENT_NEG = "miss misses plunge plummet fall falls drop drops slump downgrade downgraded underperform weak loss losses cuts cut warns warning bearish lawsuit probe investigation recall decline declines slows slowdown fears fear crash sinks sink tumble tumbles layoffs bankruptcy default halts halt".split(" ");
+function scoreHeadline(t) {
+  const words = String(t).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/);
+  let s = 0, hits = 0;
+  for (const w of words) { if (SENT_POS.includes(w)) { s++; hits++; } else if (SENT_NEG.includes(w)) { s--; hits++; } }
+  return { sign: Math.sign(s), hits };
+}
+async function yahooNews(symbol) {
+  const j = await getJSON(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=12`);
+  return (j.news || []).map((n) => ({ title: n.title, publisher: n.publisher, link: n.link, ts: n.providerPublishTime }));
+}
+async function finnhubSentiment(symbol) {
+  const k = process.env.FINNHUB_API_KEY;
+  if (!k) throw httpErr(501, "finnhub not configured");
+  const j = await getJSON(`https://finnhub.io/api/v1/news-sentiment?symbol=${encodeURIComponent(symbol)}&token=${k}`);
+  const b = j.sentiment && j.sentiment.bullishPercent;
+  if (b == null) throw httpErr(404, `no finnhub sentiment for ${symbol}`);
+  const score = (b - 0.5) * 2;
+  return { symbol, score, label: score > 0.2 ? "bullish" : score < -0.2 ? "bearish" : "neutral",
+           n: j.buzz ? j.buzz.articlesInLastWeek : null, scored: null, headlines: [], asOf: Date.now(), src: "finnhub" };
+}
+async function sentiment(symbol) {
+  if (process.env.FINNHUB_API_KEY) { try { return await finnhubSentiment(symbol); } catch (e) { /* fall back to lexicon */ } }
+  const news = await yahooNews(symbol);
+  let total = 0, scored = 0;
+  const headlines = news.map((n) => {
+    const r = scoreHeadline(n.title);
+    if (r.hits > 0) { total += r.sign; scored++; }
+    return { title: n.title, publisher: n.publisher, sign: r.sign };
+  });
+  const score = scored ? total / scored : 0;
+  return { symbol, score, label: score > 0.2 ? "bullish" : score < -0.2 ? "bearish" : "neutral",
+           n: news.length, scored, headlines: headlines.slice(0, 6), asOf: Date.now(), src: "yahoo+lexicon" };
+}
+
 /* ---- handler helpers (shared by every Vercel function) ----------------- */
 function cors(req, res) {
   const allow = process.env.ALLOWED_ORIGIN || "*";
@@ -124,4 +196,4 @@ function handler(fn, cacheSecs) {
   };
 }
 
-module.exports = { quote, history, fx, yahooSearch, handler, send, cors };
+module.exports = { quote, history, fx, yahooSearch, macro, sentiment, handler, send, cors };

@@ -12,6 +12,8 @@ free/keyless by default; paid real-time providers drop in via env vars.
 | `GET /api/history` | `symbol`, `class`, `range` (default `6mo`), `interval` (`1d`) | `{symbol, closes:[…]}` |
 | `GET /api/fx` | `from`, `to` | `{from, to, rate, src}` |
 | `GET /api/search` | `q` | `{results:[{symbol,name,exchange,type}]}` |
+| `GET /api/macro` | — | `{regime, score, indicators}` — needs `FRED_API_KEY` |
+| `GET /api/sentiment` | `symbol` | `{symbol, score, label, headlines}` — keyless |
 
 Provider routing (in `_core.js`): crypto → CoinGecko; equities/ETF/FX/bond →
 Yahoo Finance; FX falls back to exchangerate.host. Responses carry short
@@ -37,8 +39,13 @@ Yahoo automatically:
 
 | Env var | Effect |
 |---------|--------|
-| `FINNHUB_API_KEY` | Real-time US equity/ETF quotes via Finnhub |
+| `FINNHUB_API_KEY` | Real-time US equity/ETF quotes + provider news-sentiment via Finnhub |
+| `FRED_API_KEY` | Macro engine (`/api/macro`) — free key from fred.stlouisfed.org |
 | `ALLOWED_ORIGIN` | Restrict CORS (default `*`) — set to your PWA origin |
+
+Without `FRED_API_KEY` the macro card shows setup guidance; sentiment works
+keyless (Yahoo headlines + finance lexicon) and upgrades to provider sentiment
+when `FINNHUB_API_KEY` is set.
 
 Add a Polygon/Alpaca provider the same way: write a `…Quote()` in `_core.js`,
 gate it on its key in `quote()`. No front-end change needed.

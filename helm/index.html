@@ -97,10 +97,16 @@
     <div class="section-h"><h2>Market regime</h2><span class="sub">trend × volatility, from price history</span></div>
     <div class="panel" id="regimePanel"></div>
 
+    <div class="section-h"><h2>Macro regime</h2><span class="sub">rates · curve · inflation · jobs (FRED)</span></div>
+    <div class="panel" id="macroPanel"></div>
+
+    <div class="section-h"><h2>News sentiment</h2><span class="sub">headlines × finance lexicon</span></div>
+    <div class="panel" id="sentPanel"></div>
+
     <div class="section-h"><h2>Allocation</h2><span class="sub" id="allocSub"></span></div>
     <div class="panel" id="allocPanel"></div>
 
-    <div class="section-h"><h2>Decision signals</h2><span class="sub">Phase-1 rules; ML/macro engines plug in next</span></div>
+    <div class="section-h"><h2>Decision signals</h2><span class="sub">regime × macro × sentiment × tax</span></div>
     <div class="panel" id="signalsPanel"></div>
   </section>
 
@@ -272,6 +278,8 @@ const DEFAULT_STATE = () => ({
   prices:{},               // symbol -> {price, ccy, asOf, src}
   history:{},              // symbol -> [closes] (most recent last) for regime
   fx:{},                   // 'EURUSD' -> {rate, asOf}  (currency+base key)
+  sentiment:{},            // symbol -> {score, label, n, scored, headlines, asOf}
+  macro:null,              // {regime, score, indicators, asOf} | {error}
   targets:{}               // assetClass -> target weight %
 });
 
@@ -342,6 +350,9 @@ const Providers = {
   async search(q){
     try{ const j=await this._proxy(`/search?q=${encodeURIComponent(q)}`); return j.results||[]; }catch(e){ return []; }
   },
+
+  async macro(){ try{ return await this._proxy('/macro'); }catch(e){ return {error:e.message}; } },
+  async sentiment(sym){ try{ return await this._proxy(`/sentiment?symbol=${encodeURIComponent(sym)}`); }catch(e){ return null; } },
 
   async refresh(symbols){
     let ok=0,fail=0;
@@ -537,9 +548,17 @@ const Signals = {
     if(wash.length) out.push({kind:'tax', tone:'warn', text:`${wash.length} lot(s) flagged for possible wash-sale — review before harvesting.`});
     if(reg.head==='crisis'||reg.head==='bear') out.push({kind:'regime', tone:'warn', text:`Portfolio regime is ${reg.head.toUpperCase()} (score ${reg.net.toFixed(2)}). Consider defensive rebalancing/hedges.`});
     if(reg.head==='bull') out.push({kind:'regime', tone:'good', text:`Portfolio regime is BULL (score ${reg.net.toFixed(2)}). Trend-following tilts favored.`});
+    const m=State.macro;
+    if(m && !m.error){
+      const I=m.indicators||{};
+      if(m.score<-0.3) out.push({kind:'macro', tone:'warn', text:`Macro regime ${m.regime.toUpperCase().replace(/-/g,' ')} (score ${m.score.toFixed(2)}) — curve ${I.yieldCurve==null?'—':fmt(I.yieldCurve,2)+'%'}, inflation ${I.inflationYoY==null?'—':fmt(I.inflationYoY,1)+'%'}. Risk-off backdrop; favor quality/defensives.`});
+      else if(m.score>0.3) out.push({kind:'macro', tone:'good', text:`Macro regime ${m.regime.toUpperCase()} (score ${m.score.toFixed(2)}) — supportive backdrop for risk assets.`});
+    }
+    const bear=Object.entries(State.sentiment||{}).map(([s,v])=>({s,...v})).filter(r=>r.label==='bearish').sort((a,b)=>a.score-b.score)[0];
+    if(bear) out.push({kind:'sentiment', tone:'warn', text:`Bearish news sentiment on ${bear.s}${bear.scored?` (${bear.scored} headlines)`:''} — review before adding to the position.`});
     const drift=Plan.drift().filter(d=>Math.abs(d.gap)>5);
     if(drift.length) out.push({kind:'plan', tone:'info', text:`${drift.length} asset class(es) drifted >5% from target — see Plan tab.`});
-    out.push({kind:'engine', tone:'muted', text:`Sentiment + macro engines (news/social/rates/yield-curve) activate in Phase 2 via the serverless layer.`});
+    out.push({kind:'engine', tone:'muted', text:`Next: Phase 2c upgrades regime to a server-side ML model (vol-clustering/HMM); Phase 3 fuses these into ranked, tax-aware execution plans.`});
     return out;
   }
 };
@@ -609,6 +628,8 @@ function renderDash(){
     ap.appendChild(lg);
   } else ap.innerHTML='<div class="empty">No holdings yet.</div>';
 
+  renderMacro(); renderSentiment();
+
   // signals
   const sp=$('#signalsPanel');sp.innerHTML='';
   const hints=Signals.hints();
@@ -618,6 +639,41 @@ function renderDash(){
     d.innerHTML=`<span class="tag" style="border-color:${tone};color:${tone}">${h.kind}</span> ${h.text}`;
     sp.appendChild(d);
   });
+}
+
+function renderMacro(){
+  const m=State.macro, p=$('#macroPanel');
+  if(!m){ p.innerHTML='<div class="empty">Tap ↻ Prices to load macro (needs the /api proxy + a free FRED_API_KEY).</div>'; return; }
+  if(m.error){ p.innerHTML=`<div class="empty">Macro unavailable: ${m.error}.<br>Add a free <b>FRED_API_KEY</b> to the proxy (fred.stlouisfed.org).</div>`; return; }
+  const col=m.score>0.3?'var(--green)':m.score<-0.3?'var(--red)':'var(--amber)', I=m.indicators;
+  p.innerHTML=`<div class="regime"><span class="dot" style="background:${col}"></span>
+    <span style="color:${col}">${m.regime.toUpperCase().replace(/-/g,' ')}</span>
+    <span class="muted" style="font-weight:400">· score ${m.score.toFixed(2)}</span></div>`;
+  const tb=el('table');tb.innerHTML='<tr><th>Indicator</th><th>Latest</th><th>Read</th></tr>';
+  [['Yield curve 10y–2y', I.yieldCurve==null?'—':fmt(I.yieldCurve,2)+'%', I.yieldCurve!=null&&I.yieldCurve<0?'inverted':'normal'],
+   ['Fed funds rate', I.fedFunds==null?'—':fmt(I.fedFunds,2)+'%', I.fedFundsChg6m>0.1?'tightening':I.fedFundsChg6m<-0.1?'easing':'steady'],
+   ['Inflation CPI YoY', I.inflationYoY==null?'—':fmt(I.inflationYoY,1)+'%', I.inflationYoY>3?'hot':I.inflationYoY<2?'cool':'on target'],
+   ['Unemployment', I.unemployment==null?'—':fmt(I.unemployment,1)+'%', I.unemploymentChg6m>0.2?'rising':I.unemploymentChg6m<-0.1?'falling':'steady']]
+   .forEach(([k,v,r])=>{const tr=el('tr');tr.innerHTML=`<td>${k}</td><td>${v}</td><td><span class="tag">${r}</span></td>`;tb.appendChild(tr);});
+  p.appendChild(tb);
+  const s=el('div','src');s.style.marginTop='6px';s.textContent='Source: FRED · hourly';p.appendChild(s);
+}
+
+function renderSentiment(){
+  const p=$('#sentPanel');
+  const rows=Object.entries(State.sentiment||{}).map(([symbol,v])=>({symbol,...v}));
+  if(!rows.length){ p.innerHTML='<div class="empty">Tap ↻ Prices to score news sentiment for your holdings.</div>'; return; }
+  const ps=Portfolio.positions(); const tot=ps.reduce((x,q)=>x+(q.mvBase||0),0)||1;
+  let agg=0; rows.forEach(r=>{const pos=ps.find(q=>q.symbol===r.symbol); agg+=r.score*(pos?(pos.mvBase||0)/tot:0);});
+  const head= agg>0.15?'bullish':agg<-0.15?'bearish':'neutral';
+  const hc={bullish:'var(--green)',bearish:'var(--red)',neutral:'var(--amber)'}[head];
+  p.innerHTML=`<div class="regime"><span class="dot" style="background:${hc}"></span>Portfolio tone:
+    <span style="color:${hc}">${head}</span> <span class="muted" style="font-weight:400">· ${rows.length} scored</span></div>`;
+  const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Headlines</th><th>Tone</th></tr>';
+  rows.sort((a,b)=>a.score-b.score).forEach(r=>{const c={bullish:'var(--green)',bearish:'var(--red)',neutral:'var(--dim)'}[r.label]||'var(--dim)';
+    const tr=el('tr');tr.innerHTML=`<td>${r.symbol}</td><td>${r.scored==null?'—':r.scored+'/'+(r.n||0)}</td><td style="color:${c}">${r.label}</td>`;tb.appendChild(tr);});
+  p.appendChild(tb);
+  const s=el('div','src');s.style.marginTop='6px';s.textContent='Source: news headlines + lexicon (set FINNHUB_API_KEY for provider sentiment)';p.appendChild(s);
 }
 
 function renderHoldings(){
@@ -749,6 +805,10 @@ async function refreshPrices(){
   if(!ps.length){toast('No holdings to price');return;}
   toast('Fetching prices…');
   const res=await Providers.refresh(ps.map(p=>({symbol:p.symbol,assetClass:p.assetClass,ccy:p.ccy})));
+  // Phase-2b signal engines: macro once + news sentiment for the top holdings
+  try{ const m=await Providers.macro(); if(m) State.macro=m; }catch(e){}
+  for(const p of ps.slice(0,8)){ try{ const s=await Providers.sentiment(p.symbol); if(s) State.sentiment[p.symbol]=s; }catch(e){} }
+  DB.save(State);
   renderAll();
   const via=res.proxy===true?'via proxy':res.proxy===false?'direct (no proxy)':'';
   toast(`Priced ${res.ok}/${ps.length} ${via}${res.fail?` · ${res.fail} need /api proxy`:''}`);
@@ -772,6 +832,14 @@ function loadDemo(){
     BTC:{price:64000,ccy:'USD',asOf:Date.now(),src:'seed'},NVDA:{price:118,ccy:'USD',asOf:Date.now(),src:'seed'}};
   const synth=(start,n,drift,volat)=>{const a=[start];for(let i=1;i<n;i++){a.push(Math.max(1,a[i-1]*(1+drift+(Math.sin(i*1.3)*volat))));}return a;};
   State.history={AAPL:synth(150,120,.0009,.012),VOO:synth(400,120,.0008,.006),BTC:synth(42000,120,.002,.03),NVDA:synth(140,120,-.001,.02)};
+  // seed macro + sentiment so the Phase-2b cards are meaningful offline (refresh replaces with live data)
+  State.macro={regime:'late-cycle',score:-0.35,src:'seed',asOf:Date.now(),
+    indicators:{yieldCurve:-0.35,fedFunds:4.33,fedFundsChg6m:0.5,inflationYoY:3.4,unemployment:4.1,unemploymentChg6m:0.3}};
+  State.sentiment={
+    AAPL:{score:0.33,label:'bullish',n:10,scored:6,src:'seed',asOf:Date.now()},
+    NVDA:{score:-0.40,label:'bearish',n:9,scored:5,src:'seed',asOf:Date.now()},
+    BTC:{score:0.10,label:'neutral',n:8,scored:4,src:'seed',asOf:Date.now()},
+    VOO:{score:0.05,label:'neutral',n:5,scored:2,src:'seed',asOf:Date.now()}};
   State.targets={equity:50,etf:30,crypto:10,bond:10};
   DB.save(State);renderAll();toast('Demo portfolio loaded');
 }
