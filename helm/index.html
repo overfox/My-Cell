@@ -97,7 +97,7 @@
     <div class="section-h"><h2>Recommended actions</h2><span class="sub">ranked · tax-aware</span></div>
     <div class="panel" id="recTop"></div>
 
-    <div class="section-h"><h2>Market regime</h2><span class="sub">trend × volatility, from price history</span></div>
+    <div class="section-h"><h2>Market regime</h2><span class="sub">2-state Gaussian HMM (server) · trend fallback</span></div>
     <div class="panel" id="regimePanel"></div>
 
     <div class="section-h"><h2>Macro regime</h2><span class="sub">rates · curve · inflation · jobs (FRED)</span></div>
@@ -296,6 +296,7 @@ const DEFAULT_STATE = () => ({
   history:{},              // symbol -> [closes] (most recent last) for regime
   fx:{},                   // 'EURUSD' -> {rate, asOf}  (currency+base key)
   sentiment:{},            // symbol -> {score, label, n, scored, headlines, asOf}
+  regimeModel:{},          // symbol -> HMM regime {label, prob, states, trendAnn, persistenceDays}
   macro:null,              // {regime, score, indicators, asOf} | {error}
   targets:{}               // assetClass -> target weight %
 });
@@ -370,6 +371,7 @@ const Providers = {
 
   async macro(){ try{ return await this._proxy('/macro'); }catch(e){ return {error:e.message}; } },
   async sentiment(sym){ try{ return await this._proxy(`/sentiment?symbol=${encodeURIComponent(sym)}`); }catch(e){ return null; } },
+  async regime(sym,assetClass){ try{ return await this._proxy(`/regime?symbol=${encodeURIComponent(sym)}&class=${assetClass||'equity'}`); }catch(e){ return null; } },
 
   async refresh(symbols){
     let ok=0,fail=0;
@@ -550,7 +552,13 @@ const Signals = {
   portfolioRegime(){
     // weight each position's regime by market value; reduce to a headline
     const ps=Portfolio.positions(); const tot=ps.reduce((x,p)=>x+(p.mvBase||0),0)||1;
-    const rows=ps.map(p=>({symbol:p.symbol, w:(p.mvBase||0)/tot, ...this.regimeOf(State.history[p.symbol])}));
+    const rows=ps.map(p=>{
+      const m=State.regimeModel[p.symbol], w=(p.mvBase||0)/tot;
+      if(m&&m.label){ const st=m.states&&m.states[m.state];
+        return {symbol:p.symbol, w, state:m.label, trend:m.trendAnn, vol:st?st.volAnn:null, prob:m.prob, persist:m.persistenceDays, src:'hmm'}; }
+      const h=this.regimeOf(State.history[p.symbol]);
+      return {symbol:p.symbol, w, state:h.state, trend:h.trend, vol:h.vol, prob:null, src:'trend'};
+    });
     const score={bull:1,chop:0,bear:-1,crisis:-1.5,unknown:0};
     const net=rows.reduce((x,r)=>x+ (score[r.state]||0)*r.w,0);
     const head= net>0.4?'bull': net<-0.6?'crisis': net<-0.2?'bear':'chop';
@@ -754,12 +762,14 @@ function renderDash(){
      Headline regime: <span style="color:${REGIME_COLOR[reg.head]}">${reg.head.toUpperCase()}</span>
      <span class="muted" style="font-weight:400">· net score ${reg.net.toFixed(2)}</span></div>`;
   if(reg.rows.length){
-    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Weight</th><th>Trend%</th><th>Vol%</th><th>State</th></tr>';
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Weight</th><th>Trend%</th><th>Vol%</th><th>State</th><th>Conf</th></tr>';
     reg.rows.sort((a,b)=>b.w-a.w).forEach(r=>{
-      const tr=el('tr');tr.innerHTML=`<td>${r.symbol}</td><td>${fmt(r.w*100,1)}%</td>
+      const tr=el('tr');tr.innerHTML=`<td>${r.symbol} <span class="tag ${r.src==='hmm'?'lt':''}">${r.src==='hmm'?'HMM':'trend'}</span></td>
+        <td>${fmt(r.w*100,1)}%</td>
         <td class="${cls(r.trend)}">${r.trend==null?'—':fmt(r.trend,1)}</td>
         <td>${r.vol==null?'—':fmt(r.vol,0)}</td>
-        <td><span class="regime"><span class="dot" style="background:${REGIME_COLOR[r.state]}"></span>${r.state}</span></td>`;
+        <td><span class="regime"><span class="dot" style="background:${REGIME_COLOR[r.state]}"></span>${r.state}</span></td>
+        <td>${r.prob==null?'—':fmt(r.prob*100,0)+'%'}</td>`;
       tb.appendChild(tr);});
     rp.appendChild(tb);
   } else rp.innerHTML+='<div class="empty">Add holdings and refresh prices to compute regime.</div>';
@@ -1015,7 +1025,10 @@ async function refreshPrices(){
   const res=await Providers.refresh(ps.map(p=>({symbol:p.symbol,assetClass:p.assetClass,ccy:p.ccy})));
   // Phase-2b signal engines: macro once + news sentiment for the top holdings
   try{ const m=await Providers.macro(); if(m) State.macro=m; }catch(e){}
-  for(const p of ps.slice(0,8)){ try{ const s=await Providers.sentiment(p.symbol); if(s) State.sentiment[p.symbol]=s; }catch(e){} }
+  for(const p of ps.slice(0,8)){
+    try{ const s=await Providers.sentiment(p.symbol); if(s) State.sentiment[p.symbol]=s; }catch(e){}
+    try{ const g=await Providers.regime(p.symbol,p.assetClass); if(g&&!g.error) State.regimeModel[p.symbol]=g; }catch(e){}
+  }
   DB.save(State);
   renderAll();
   const via=res.proxy===true?'via proxy':res.proxy===false?'direct (no proxy)':'';
@@ -1048,6 +1061,12 @@ function loadDemo(){
     NVDA:{score:-0.40,label:'bearish',n:9,scored:5,src:'seed',asOf:Date.now()},
     BTC:{score:0.10,label:'neutral',n:8,scored:4,src:'seed',asOf:Date.now()},
     VOO:{score:0.05,label:'neutral',n:5,scored:2,src:'seed',asOf:Date.now()}};
+  // seed HMM regime model so the Phase-2c card is meaningful offline
+  State.regimeModel={
+    AAPL:{symbol:'AAPL',state:0,label:'bull',prob:0.82,trendAnn:24,persistenceDays:34,src:'hmm',states:[{meanAnn:24,volAnn:18,label:'bull'},{meanAnn:-30,volAnn:42,label:'bear'}]},
+    NVDA:{symbol:'NVDA',state:1,label:'bear',prob:0.74,trendAnn:-26,persistenceDays:12,src:'hmm',states:[{meanAnn:30,volAnn:34,label:'bull'},{meanAnn:-26,volAnn:52,label:'bear'}]},
+    BTC:{symbol:'BTC',state:1,label:'crisis',prob:0.90,trendAnn:-58,persistenceDays:8,src:'hmm',states:[{meanAnn:40,volAnn:48,label:'bull'},{meanAnn:-58,volAnn:74,label:'crisis'}]},
+    VOO:{symbol:'VOO',state:0,label:'chop',prob:0.61,trendAnn:5,persistenceDays:22,src:'hmm',states:[{meanAnn:6,volAnn:12,label:'chop'},{meanAnn:-12,volAnn:24,label:'bear'}]}};
   State.targets={equity:50,etf:30,crypto:10,bond:10};
   DB.save(State);renderAll();toast('Demo portfolio loaded');
 }

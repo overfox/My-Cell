@@ -168,6 +168,83 @@ async function sentiment(symbol) {
            n: news.length, scored, headlines: headlines.slice(0, 6), asOf: Date.now(), src: "yahoo+lexicon" };
 }
 
+/* ---- Regime engine: 2-state Gaussian HMM on log returns ----------------
+   Baum-Welch (scaled forward-backward) trains two Gaussian states — a calm
+   higher-mean regime and a volatile lower-mean regime — then the smoothed
+   posterior at the last observation gives the current state + confidence,
+   and the transition self-loop gives expected persistence. This replaces the
+   single-window trend/vol heuristic with a model that separates regimes
+   statistically. Pure function so it is unit-testable offline. */
+function hmmRegime(closes) {
+  const px = (closes || []).filter((x) => x > 0);
+  if (px.length < 40) return { error: "insufficient history (need 40+ closes)" };
+  const r = [];
+  for (let i = 1; i < px.length; i++) r.push(Math.log(px[i] / px[i - 1]));
+  const T = r.length, K = 2;
+  const mean = r.reduce((a, b) => a + b, 0) / T;
+  const varAll = r.reduce((a, b) => a + (b - mean) ** 2, 0) / T || 1e-6;
+  let mu = [mean + Math.sqrt(varAll) * 0.3, mean - Math.sqrt(varAll) * 0.3];
+  let vr = [varAll * 0.6, varAll * 1.8];
+  let A = [[0.9, 0.1], [0.15, 0.85]];
+  let pi = [0.6, 0.4];
+  const g = (x, m, v) => Math.exp(-((x - m) ** 2) / (2 * v)) / Math.sqrt(2 * Math.PI * v);
+  let gamma = [];
+  for (let it = 0; it < 40; it++) {
+    const alpha = Array.from({ length: T }, () => [0, 0]), c = new Array(T).fill(0);
+    for (let k = 0; k < K; k++) alpha[0][k] = pi[k] * g(r[0], mu[k], vr[k]);
+    c[0] = alpha[0][0] + alpha[0][1] || 1e-300; alpha[0][0] /= c[0]; alpha[0][1] /= c[0];
+    for (let t = 1; t < T; t++) {
+      for (let k = 0; k < K; k++) alpha[t][k] = (alpha[t-1][0]*A[0][k] + alpha[t-1][1]*A[1][k]) * g(r[t], mu[k], vr[k]);
+      c[t] = alpha[t][0] + alpha[t][1] || 1e-300; alpha[t][0] /= c[t]; alpha[t][1] /= c[t];
+    }
+    const beta = Array.from({ length: T }, () => [0, 0]); beta[T-1] = [1, 1];
+    for (let t = T-2; t >= 0; t--) for (let k = 0; k < K; k++)
+      beta[t][k] = (A[k][0]*g(r[t+1],mu[0],vr[0])*beta[t+1][0] + A[k][1]*g(r[t+1],mu[1],vr[1])*beta[t+1][1]) / c[t+1];
+    gamma = Array.from({ length: T }, () => [0, 0]);
+    const Asum = [[0,0],[0,0]];
+    for (let t = 0; t < T; t++) { const den = alpha[t][0]*beta[t][0] + alpha[t][1]*beta[t][1] || 1e-300;
+      for (let k = 0; k < K; k++) gamma[t][k] = alpha[t][k]*beta[t][k] / den; }
+    for (let t = 0; t < T-1; t++) { const xi = [[0,0],[0,0]]; let den = 0;
+      for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) { xi[i][j] = alpha[t][i]*A[i][j]*g(r[t+1],mu[j],vr[j])*beta[t+1][j]/c[t+1]; den += xi[i][j]; }
+      den = den || 1e-300;
+      for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) Asum[i][j] += xi[i][j] / den; }
+    pi = [gamma[0][0], gamma[0][1]];
+    for (let i = 0; i < K; i++) { const rd = Asum[i][0] + Asum[i][1] || 1e-300; A[i][0] = Asum[i][0]/rd; A[i][1] = Asum[i][1]/rd; }
+    for (let k = 0; k < K; k++) { let gk = 0, mk = 0; for (let t = 0; t < T; t++) { gk += gamma[t][k]; mk += gamma[t][k]*r[t]; }
+      gk = gk || 1e-300; mu[k] = mk/gk; let vk = 0; for (let t = 0; t < T; t++) vk += gamma[t][k]*(r[t]-mu[k])**2; vr[k] = Math.max(vk/gk, 1e-8); }
+  }
+  // decode the current regime over a short window (not one candle) so an
+  // oscillating series that clusters by return-sign doesn't flip the regime
+  // every bar — a genuinely persistent regime dominates the window.
+  const W = Math.min(7, T);
+  let g0 = 0, g1 = 0; for (let t = T - W; t < T; t++) { g0 += gamma[t][0]; g1 += gamma[t][1]; }
+  const cur = g0 >= g1 ? 0 : 1;
+  const conf = (cur === 0 ? g0 : g1) / W;
+  const stat = (k) => ({ meanAnn: mu[k]*252*100, volAnn: Math.sqrt(vr[k]*252)*100 });
+  const states = [stat(0), stat(1)].map((s) => ({ ...s, label: s.volAnn > 60 ? "crisis" : s.meanAnn > 10 ? "bull" : s.meanAnn < -10 ? "bear" : "chop" }));
+  // The HMM reliably separates a calm vs a volatile state (volatility clusters
+  // and persists); the per-state *mean* sign is noisy on single-regime data.
+  // So take the volatility/crisis regime from the model and the bull/bear
+  // direction from a robust recent-trend of returns.
+  const wT = Math.min(60, T); let tm = 0; for (let t = T - wT; t < T; t++) tm += r[t];
+  const trendAnn = (tm / wT) * 252 * 100;
+  const curVol = states[cur].volAnn;
+  // "stress" only when the current state is materially more volatile than the
+  // other (a real high-vol regime), not a near-tie from single-regime overfit
+  const volatileState = curVol > states[1 - cur].volAnn * 1.5 && curVol > 25;
+  let lbl;
+  if (curVol > 60) lbl = "crisis";                          // extreme volatility
+  else if (volatileState) lbl = trendAnn < -8 ? "bear" : "chop";  // stress regime: never 'bull' off a bounce
+  else lbl = trendAnn > 8 ? "bull" : trendAnn < -8 ? "bear" : "chop";  // calm regime: trend-directed
+  const a = Math.min(A[cur][cur], 0.999);       // clamp so persistence stays finite
+  return { state: cur, prob: conf, label: lbl, states, trendAnn,
+           persistenceDays: 1 / (1 - a), transition: A, n: T, src: "hmm" };
+}
+async function regime(symbol, assetClass, range) {
+  const closes = await history(symbol, assetClass, range || "1y", "1d");
+  return Object.assign({ symbol }, hmmRegime(closes));
+}
+
 /* ---- handler helpers (shared by every Vercel function) ----------------- */
 function cors(req, res) {
   const allow = process.env.ALLOWED_ORIGIN || "*";
@@ -196,4 +273,4 @@ function handler(fn, cacheSecs) {
   };
 }
 
-module.exports = { quote, history, fx, yahooSearch, macro, sentiment, handler, send, cors };
+module.exports = { quote, history, fx, yahooSearch, macro, sentiment, regime, hmmRegime, handler, send, cors };

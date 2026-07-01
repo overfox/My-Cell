@@ -14,6 +14,7 @@ free/keyless by default; paid real-time providers drop in via env vars.
 | `GET /api/search` | `q` | `{results:[{symbol,name,exchange,type}]}` |
 | `GET /api/macro` | — | `{regime, score, indicators}` — needs `FRED_API_KEY` |
 | `GET /api/sentiment` | `symbol` | `{symbol, score, label, headlines}` — keyless |
+| `GET /api/regime` | `symbol`, `class`, `range` | `{label, prob, states, trendAnn, persistenceDays}` — 2-state Gaussian HMM, keyless |
 
 Provider routing (in `_core.js`): crypto → CoinGecko; equities/ETF/FX/bond →
 Yahoo Finance; FX falls back to exchangerate.host. Responses carry short
