@@ -1,10 +1,9 @@
-/* Helm data proxy — portable core (CommonJS, no deps).
-   Runs server-side so browser CORS limits on equity/FX feeds disappear.
-   Provider routing is env-driven and "paid-ready": set POLYGON_API_KEY or
-   FINNHUB_API_KEY to prefer real-time equity quotes; otherwise free Yahoo /
-   CoinGecko are used. The Vercel handlers in this folder are thin wrappers
-   around these functions, so the same core drops into Cloudflare Workers,
-   Netlify or a tiny Express app unchanged. */
+/* Helm data proxy — shared core for Cloudflare Pages Functions (ESM, no deps).
+   Runs at the edge so browser CORS limits on equity/FX feeds disappear.
+   Secrets arrive via `env` (context.env on Cloudflare), never process.env, so
+   the same code runs at the edge and under Node for tests. Provider routing is
+   "paid-ready": set FINNHUB_API_KEY to prefer real-time equity quotes; else
+   free Yahoo / CoinGecko are used. */
 
 const UA = { headers: { "User-Agent": "Mozilla/5.0 (compatible; HelmCockpit/1.0)" } };
 
@@ -49,7 +48,7 @@ async function yahooHistory(symbol, range, interval) {
   const closes = res.indicators.quote[0].close || [];
   return closes.filter((x) => x != null);
 }
-async function yahooSearch(q) {
+export async function yahooSearch(q) {
   const j = await getJSON(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=10&newsCount=0`);
   return (j.quotes || []).filter((x) => x.symbol).map((x) => ({
     symbol: x.symbol, name: x.shortname || x.longname || "", exchange: x.exchDisp || x.exchange || "",
@@ -57,8 +56,8 @@ async function yahooSearch(q) {
 }
 
 /* ---- Finnhub (optional, paid-ready real-time equities) ----------------- */
-async function finnhubQuote(symbol) {
-  const k = process.env.FINNHUB_API_KEY;
+async function finnhubQuote(symbol, env) {
+  const k = env.FINNHUB_API_KEY;
   if (!k) throw httpErr(501, "finnhub not configured");
   const j = await getJSON(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${k}`);
   if (j.c == null || j.c === 0) throw httpErr(404, `finnhub no price for ${symbol}`);
@@ -66,29 +65,27 @@ async function finnhubQuote(symbol) {
 }
 
 /* ---- public, provider-routed API --------------------------------------- */
-async function quote(symbol, assetClass, ccy) {
+export async function quote(symbol, assetClass, ccy, env = {}) {
   if (assetClass === "crypto") return coingeckoQuote(symbol, ccy);
-  // prefer a configured paid real-time provider, fall back to free Yahoo
-  if (process.env.FINNHUB_API_KEY && (assetClass === "equity" || assetClass === "etf")) {
-    try { return await finnhubQuote(symbol); } catch (e) { /* fall through to Yahoo */ }
+  if (env.FINNHUB_API_KEY && (assetClass === "equity" || assetClass === "etf")) {
+    try { return await finnhubQuote(symbol, env); } catch (e) { /* fall through to Yahoo */ }
   }
   return yahooQuote(symbol);
 }
-async function history(symbol, assetClass, range, interval) {
+export async function history(symbol, assetClass, range, interval) {
   if (assetClass === "crypto") {
     const days = { "1mo":30, "3mo":90, "6mo":120, "1y":365, "2y":730 }[range] || 120;
     return coingeckoHistory(symbol, "usd", days);
   }
   return yahooHistory(symbol, range, interval);
 }
-async function fx(from, to) {
+export async function fx(from, to) {
   from = (from || "USD").toUpperCase(); to = (to || "USD").toUpperCase();
   if (from === to) return { from, to, rate: 1, asOf: Date.now(), src: "identity" };
   try {
     const q = await yahooQuote(`${from}${to}=X`);
     return { from, to, rate: q.price, asOf: Date.now(), src: "yahoo" };
   } catch (e) {
-    // free keyless fallback
     const j = await getJSON(`https://api.exchangerate.host/latest?base=${from}&symbols=${to}`);
     const rate = j && j.rates && j.rates[to];
     if (rate == null) throw httpErr(502, `no fx ${from}->${to}`);
@@ -98,20 +95,19 @@ async function fx(from, to) {
 
 /* ---- Macro engine (FRED, free with key) -------------------------------- */
 const FRED = "https://api.stlouisfed.org/fred/series/observations";
-async function fredSeries(id, limit) {
-  const k = process.env.FRED_API_KEY;
+async function fredSeries(id, limit, env) {
+  const k = env.FRED_API_KEY;
   if (!k) throw httpErr(501, "FRED_API_KEY not configured");
   const j = await getJSON(`${FRED}?series_id=${id}&api_key=${k}&file_type=json&sort_order=desc&limit=${limit || 13}`);
   return (j.observations || []).map((o) => ({ date: o.date, value: o.value === "." ? null : parseFloat(o.value) })).filter((o) => o.value != null);
 }
-async function macro() {
-  // latest-first series: 10y-2y spread, fed funds, CPI level, unemployment
+export async function macro(env = {}) {
   const [curve, funds, cpi, unrate] = await Promise.all([
-    fredSeries("T10Y2Y", 5), fredSeries("FEDFUNDS", 13), fredSeries("CPIAUCSL", 14), fredSeries("UNRATE", 13),
+    fredSeries("T10Y2Y", 5, env), fredSeries("FEDFUNDS", 13, env), fredSeries("CPIAUCSL", 14, env), fredSeries("UNRATE", 13, env),
   ]);
   const latest = (a) => (a[0] ? a[0].value : null);
   const yoy = (a) => (a.length >= 13 && a[0] && a[12] ? (a[0].value / a[12].value - 1) * 100 : null);
-  const trend = (a, n) => (a.length > n ? a[0].value - a[n].value : null); // latest minus n-periods-ago
+  const trend = (a, n) => (a.length > n ? a[0].value - a[n].value : null);
   const ind = {
     yieldCurve: latest(curve), fedFunds: latest(funds), fedFundsChg6m: trend(funds, 6),
     inflationYoY: yoy(cpi), unemployment: latest(unrate), unemploymentChg6m: trend(unrate, 6),
@@ -144,8 +140,8 @@ async function yahooNews(symbol) {
   const j = await getJSON(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=12`);
   return (j.news || []).map((n) => ({ title: n.title, publisher: n.publisher, link: n.link, ts: n.providerPublishTime }));
 }
-async function finnhubSentiment(symbol) {
-  const k = process.env.FINNHUB_API_KEY;
+async function finnhubSentiment(symbol, env) {
+  const k = env.FINNHUB_API_KEY;
   if (!k) throw httpErr(501, "finnhub not configured");
   const j = await getJSON(`https://finnhub.io/api/v1/news-sentiment?symbol=${encodeURIComponent(symbol)}&token=${k}`);
   const b = j.sentiment && j.sentiment.bullishPercent;
@@ -154,8 +150,8 @@ async function finnhubSentiment(symbol) {
   return { symbol, score, label: score > 0.2 ? "bullish" : score < -0.2 ? "bearish" : "neutral",
            n: j.buzz ? j.buzz.articlesInLastWeek : null, scored: null, headlines: [], asOf: Date.now(), src: "finnhub" };
 }
-async function sentiment(symbol) {
-  if (process.env.FINNHUB_API_KEY) { try { return await finnhubSentiment(symbol); } catch (e) { /* fall back to lexicon */ } }
+export async function sentiment(symbol, env = {}) {
+  if (env.FINNHUB_API_KEY) { try { return await finnhubSentiment(symbol, env); } catch (e) { /* fall back to lexicon */ } }
   const news = await yahooNews(symbol);
   let total = 0, scored = 0;
   const headlines = news.map((n) => {
@@ -168,14 +164,8 @@ async function sentiment(symbol) {
            n: news.length, scored, headlines: headlines.slice(0, 6), asOf: Date.now(), src: "yahoo+lexicon" };
 }
 
-/* ---- Regime engine: 2-state Gaussian HMM on log returns ----------------
-   Baum-Welch (scaled forward-backward) trains two Gaussian states — a calm
-   higher-mean regime and a volatile lower-mean regime — then the smoothed
-   posterior at the last observation gives the current state + confidence,
-   and the transition self-loop gives expected persistence. This replaces the
-   single-window trend/vol heuristic with a model that separates regimes
-   statistically. Pure function so it is unit-testable offline. */
-function hmmRegime(closes) {
+/* ---- Regime engine: 2-state Gaussian HMM on log returns (pure) --------- */
+export function hmmRegime(closes) {
   const px = (closes || []).filter((x) => x > 0);
   if (px.length < 40) return { error: "insufficient history (need 40+ closes)" };
   const r = [];
@@ -213,64 +203,48 @@ function hmmRegime(closes) {
     for (let k = 0; k < K; k++) { let gk = 0, mk = 0; for (let t = 0; t < T; t++) { gk += gamma[t][k]; mk += gamma[t][k]*r[t]; }
       gk = gk || 1e-300; mu[k] = mk/gk; let vk = 0; for (let t = 0; t < T; t++) vk += gamma[t][k]*(r[t]-mu[k])**2; vr[k] = Math.max(vk/gk, 1e-8); }
   }
-  // decode the current regime over a short window (not one candle) so an
-  // oscillating series that clusters by return-sign doesn't flip the regime
-  // every bar — a genuinely persistent regime dominates the window.
   const W = Math.min(7, T);
   let g0 = 0, g1 = 0; for (let t = T - W; t < T; t++) { g0 += gamma[t][0]; g1 += gamma[t][1]; }
   const cur = g0 >= g1 ? 0 : 1;
   const conf = (cur === 0 ? g0 : g1) / W;
   const stat = (k) => ({ meanAnn: mu[k]*252*100, volAnn: Math.sqrt(vr[k]*252)*100 });
   const states = [stat(0), stat(1)].map((s) => ({ ...s, label: s.volAnn > 60 ? "crisis" : s.meanAnn > 10 ? "bull" : s.meanAnn < -10 ? "bear" : "chop" }));
-  // The HMM reliably separates a calm vs a volatile state (volatility clusters
-  // and persists); the per-state *mean* sign is noisy on single-regime data.
-  // So take the volatility/crisis regime from the model and the bull/bear
-  // direction from a robust recent-trend of returns.
   const wT = Math.min(60, T); let tm = 0; for (let t = T - wT; t < T; t++) tm += r[t];
   const trendAnn = (tm / wT) * 252 * 100;
   const curVol = states[cur].volAnn;
-  // "stress" only when the current state is materially more volatile than the
-  // other (a real high-vol regime), not a near-tie from single-regime overfit
   const volatileState = curVol > states[1 - cur].volAnn * 1.5 && curVol > 25;
   let lbl;
-  if (curVol > 60) lbl = "crisis";                          // extreme volatility
-  else if (volatileState) lbl = trendAnn < -8 ? "bear" : "chop";  // stress regime: never 'bull' off a bounce
-  else lbl = trendAnn > 8 ? "bull" : trendAnn < -8 ? "bear" : "chop";  // calm regime: trend-directed
-  const a = Math.min(A[cur][cur], 0.999);       // clamp so persistence stays finite
+  if (curVol > 60) lbl = "crisis";
+  else if (volatileState) lbl = trendAnn < -8 ? "bear" : "chop";
+  else lbl = trendAnn > 8 ? "bull" : trendAnn < -8 ? "bear" : "chop";
+  const a = Math.min(A[cur][cur], 0.999);
   return { state: cur, prob: conf, label: lbl, states, trendAnn,
            persistenceDays: 1 / (1 - a), transition: A, n: T, src: "hmm" };
 }
-async function regime(symbol, assetClass, range) {
+export async function regime(symbol, assetClass, range) {
   const closes = await history(symbol, assetClass, range || "1y", "1d");
   return Object.assign({ symbol }, hmmRegime(closes));
 }
 
-/* ---- handler helpers (shared by every Vercel function) ----------------- */
-function cors(req, res) {
-  const allow = process.env.ALLOWED_ORIGIN || "*";
-  res.setHeader("Access-Control-Allow-Origin", allow);
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-function send(res, status, body, cacheSecs) {
-  if (cacheSecs) res.setHeader("Cache-Control", `public, s-maxage=${cacheSecs}, stale-while-revalidate=${cacheSecs * 3}`);
-  res.setHeader("Content-Type", "application/json");
-  res.statusCode = status;
-  res.end(JSON.stringify(body));
-}
-/* Wrap a (query)->data function into a Vercel-style handler. */
-function handler(fn, cacheSecs) {
-  return async (req, res) => {
-    cors(req, res);
-    if (req.method === "OPTIONS") { res.statusCode = 204; return res.end(); }
-    try {
-      const q = req.query || Object.fromEntries(new URL(req.url, "http://x").searchParams);
-      const data = await fn(q);
-      send(res, 200, data, cacheSecs);
-    } catch (e) {
-      send(res, e.status || 500, { error: e.message || "proxy error" });
-    }
+/* ---- Cloudflare Pages Functions handler helper ------------------------- */
+function corsHeaders(env) {
+  return {
+    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
   };
 }
-
-module.exports = { quote, history, fx, yahooSearch, macro, sentiment, regime, hmmRegime, handler, send, cors };
+export function json(data, { status = 200, cacheSecs = 0, env = {} } = {}) {
+  const h = Object.assign({ "Content-Type": "application/json" }, corsHeaders(env));
+  if (cacheSecs) h["Cache-Control"] = `public, s-maxage=${cacheSecs}, stale-while-revalidate=${cacheSecs * 3}`;
+  return new Response(JSON.stringify(data), { status, headers: h });
+}
+/* Wrap a (query, env) -> data function into a Pages Functions onRequest. */
+export function handle(context, fn, cacheSecs) {
+  const { request, env } = context;
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env) });
+  const q = Object.fromEntries(new URL(request.url).searchParams);
+  return Promise.resolve().then(() => fn(q, env))
+    .then((data) => json(data, { cacheSecs, env }))
+    .catch((e) => json({ error: e.message || "proxy error" }, { status: e.status || 500, env }));
+}
