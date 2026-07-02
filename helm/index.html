@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Helm — Investor Cockpit</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Helm">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#121b2e; --panel2:#0e1626; --line:#22304d;
+    --ink:#e7eefc; --dim:#8aa0c6; --faint:#5b6f93;
+    --green:#2ec27e; --red:#ff5d73; --amber:#ffb84d; --blue:#4cc9f0; --purple:#9b8cff;
+    --accent:#4cc9f0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#16243f 0,transparent 60%),var(--bg);
+    color:var(--ink);font-size:15px;line-height:1.45;
+  }
+  a{color:var(--accent)}
+  .app{max-width:1100px;margin:0 auto;padding:14px 14px 90px}
+  header.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .logo{font-weight:800;font-size:1.3rem;letter-spacing:.3px}
+  .logo span{color:var(--accent)}
+  .pill{font-size:.7rem;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+  .grow{flex:1}
+  button{font:inherit;cursor:pointer;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:linear-gradient(180deg,#2a8cf0,#1f6fd6);border-color:#2a8cf0;font-weight:700}
+  button.ghost{background:transparent}
+  button.sm{padding:5px 9px;font-size:.82rem;border-radius:8px}
+  input,select{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%}
+  label{display:block;font-size:.72rem;color:var(--dim);margin:0 0 4px 2px;text-transform:uppercase;letter-spacing:.4px}
+  .grid{display:grid;gap:12px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:14px}
+  .kpi .v{font-size:1.5rem;font-weight:800;margin-top:2px}
+  .kpi .l{font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+  .pos{color:var(--green)} .neg{color:var(--red)} .muted{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:.86rem}
+  th,td{text-align:right;padding:8px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--faint);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(76,201,240,.05)}
+  .tag{font-size:.68rem;border-radius:6px;padding:1px 6px;border:1px solid var(--line);color:var(--dim)}
+  .tag.lt{color:var(--green);border-color:rgba(46,194,126,.4)}
+  .tag.st{color:var(--amber);border-color:rgba(255,184,77,.4)}
+  .tag.wash{color:var(--red);border-color:rgba(255,93,115,.4)}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(11,18,32,.92);
+    backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:30}
+  nav.tabs button{flex:1;border:0;border-radius:0;background:transparent;color:var(--dim);padding:10px 4px;font-size:.74rem;display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav.tabs button.active{color:var(--accent)}
+  nav.tabs .ico{font-size:1.1rem}
+  .view{display:none} .view.active{display:block}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:120px}
+  .section-h{display:flex;align-items:center;gap:10px;margin:18px 2px 8px}
+  .section-h h2{font-size:1.02rem;margin:0}
+  .section-h .sub{font-size:.74rem;color:var(--dim)}
+  .bar{height:8px;border-radius:6px;background:var(--panel2);overflow:hidden;display:flex}
+  .bar i{display:block;height:100%}
+  .modal-bg{position:fixed;inset:0;background:rgba(4,8,16,.7);display:none;align-items:center;justify-content:center;z-index:40;padding:14px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;width:min(460px,100%);max-height:90vh;overflow:auto}
+  .regime{display:inline-flex;align-items:center;gap:7px;font-weight:700}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.74rem;color:var(--dim);margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .empty{color:var(--faint);text-align:center;padding:26px;font-size:.9rem}
+  .toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:9px 14px;font-size:.85rem;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .src{font-size:.68rem;color:var(--faint)}
+  .flex{display:flex;gap:8px;align-items:center}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo">Hel<span>m</span></div>
+    <span class="pill" id="dataPill">offline · demo</span>
+    <div class="grow"></div>
+    <button class="sm ghost" id="btnSettings">⚙︎</button>
+  </header>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dash">
+    <div class="grid cards" id="kpis"></div>
+
+    <div class="section-h"><h2>Recommended actions</h2><span class="sub">ranked · tax-aware</span></div>
+    <div class="panel" id="recTop"></div>
+
+    <div class="section-h"><h2>Market regime</h2><span class="sub">2-state Gaussian HMM (server) · trend fallback</span></div>
+    <div class="panel" id="regimePanel"></div>
+
+    <div class="section-h"><h2>Macro regime</h2><span class="sub">rates · curve · inflation · jobs (FRED)</span></div>
+    <div class="panel" id="macroPanel"></div>
+
+    <div class="section-h"><h2>News sentiment</h2><span class="sub">headlines × finance lexicon</span></div>
+    <div class="panel" id="sentPanel"></div>
+
+    <div class="section-h"><h2>Allocation</h2><span class="sub" id="allocSub"></span></div>
+    <div class="panel" id="allocPanel"></div>
+
+    <div class="section-h"><h2>Decision signals</h2><span class="sub">regime × macro × sentiment × tax</span></div>
+    <div class="panel" id="signalsPanel"></div>
+  </section>
+
+  <!-- HOLDINGS -->
+  <section class="view" id="view-holdings">
+    <div class="section-h"><h2>Holdings</h2><span class="grow"></span>
+      <button class="sm" id="btnRefresh">↻ Prices</button>
+      <button class="sm primary" id="btnAddTxn">+ Transaction</button>
+    </div>
+    <div class="panel" id="positionsPanel"></div>
+    <div class="section-h"><h2>Transactions</h2></div>
+    <div class="panel" id="txnsPanel"></div>
+  </section>
+
+  <!-- TAX -->
+  <section class="view" id="view-tax">
+    <div class="section-h"><h2>Tax visibility</h2><span class="sub" id="taxJurSub"></span></div>
+    <div class="grid cards" id="taxKpis"></div>
+    <div class="section-h"><h2>Open lots</h2><span class="sub">holding period · unrealized gain · wash-sale flags</span></div>
+    <div class="panel" id="lotsPanel"></div>
+    <div class="section-h"><h2>Tax-loss harvesting</h2><span class="sub">lots underwater you could realize</span></div>
+    <div class="panel" id="harvestPanel"></div>
+    <div class="section-h"><h2>Realized gains (this year)</h2></div>
+    <div class="panel" id="realizedPanel"></div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="view" id="view-plan">
+    <div class="section-h"><h2>Recommendations</h2><span class="sub">full ranked list with lot plans</span></div>
+    <div class="panel" id="recPanel"></div>
+    <div class="section-h"><h2>Plan &amp; rebalance</h2><span class="sub">target allocation drift</span></div>
+    <div class="panel" id="planPanel"></div>
+    <div class="section-h"><h2>Strategy lab</h2><span class="sub">backtest on cached daily closes · no lookahead</span></div>
+    <div class="panel" id="btPanel">
+      <div class="row">
+        <div><label>Symbol</label><select id="bt-symbol"></select></div>
+        <div><label>Strategy</label><select id="bt-strat">
+          <option value="buyhold">Buy &amp; hold</option>
+          <option value="sma">SMA crossover</option>
+          <option value="momentum">Momentum</option></select></div>
+        <div><label id="bt-l1">Fast</label><input id="bt-p1" type="number" value="10"></div>
+        <div><label id="bt-l2">Slow</label><input id="bt-p2" type="number" value="30"></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="primary" id="bt-run">Backtest</button></div>
+      </div>
+      <div id="btResult"></div>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs">
+  <button data-view="dash" class="active"><span class="ico">◈</span>Cockpit</button>
+  <button data-view="holdings"><span class="ico">▤</span>Holdings</button>
+  <button data-view="tax"><span class="ico">⚖︎</span>Tax</button>
+  <button data-view="plan"><span class="ico">◎</span>Plan</button>
+</nav>
+
+<!-- Transaction modal -->
+<div class="modal-bg" id="txnModal">
+  <div class="modal">
+    <h3 style="margin:0 0 12px">Add transaction</h3>
+    <div class="row">
+      <div><label>Action</label><select id="t-side"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+      <div><label>Symbol</label><input id="t-symbol" placeholder="AAPL / BTC"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Asset class</label><select id="t-class">
+        <option value="equity">Equity</option><option value="etf">ETF / Fund</option>
+        <option value="crypto">Crypto</option><option value="option">Option</option>
+        <option value="forex">Forex</option><option value="bond">Bond</option></select></div>
+      <div><label>Currency</label><input id="t-ccy" value="USD"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Quantity</label><input id="t-qty" type="number" step="any" placeholder="10"></div>
+      <div><label>Price</label><input id="t-price" type="number" step="any" placeholder="150.00"></div>
+      <div><label>Fees</label><input id="t-fees" type="number" step="any" value="0"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Date</label><input id="t-date" type="date"></div>
+      <div><label>Account</label><input id="t-account" value="Main"></div>
+    </div>
+    <div class="flex" style="margin-top:14px;justify-content:flex-end">
+      <button class="ghost" id="t-cancel">Cancel</button>
+      <button class="primary" id="t-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-bg" id="setModal">
+  <div class="modal">
+    <h3 style="margin:0 0 12px">Settings</h3>
+    <label>Base currency</label><input id="s-base" value="USD">
+    <div style="height:10px"></div>
+    <label>Cost-basis / lot method</label>
+    <select id="s-lot"><option value="FIFO">FIFO</option><option value="LIFO">LIFO</option><option value="HIFO">HIFO (highest cost first)</option><option value="AVG">Average cost</option></select>
+    <div style="height:10px"></div>
+    <label>Tax jurisdiction pack</label>
+    <select id="s-jur"></select>
+    <div style="height:10px"></div>
+    <label>Data proxy URL (blank = /api on this host)</label>
+    <input id="s-api" placeholder="/api  or  https://your-project.pages.dev/api">
+    <div style="height:10px"></div>
+    <div class="row">
+      <div><label>Short-term rate %</label><input id="s-stcg" type="number" step="any"></div>
+      <div><label>Long-term rate %</label><input id="s-ltcg" type="number" step="any"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Long-term after (days)</label><input id="s-lt" type="number"></div>
+      <div><label>Wash-sale window (days, 0=off)</label><input id="s-wash" type="number"></div>
+    </div>
+    <hr class="sep">
+    <div class="flex" style="justify-content:space-between">
+      <button class="ghost sm" id="s-demo">Reload demo data</button>
+      <button class="ghost sm" id="s-wipe" style="border-color:var(--red);color:var(--red)">Erase all</button>
+    </div>
+    <div class="flex" style="margin-top:14px;justify-content:flex-end">
+      <button class="ghost" id="s-cancel">Close</button>
+      <button class="primary" id="s-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================================
+   HELM — Investor Cockpit  (Phase 1 foundation)
+   Self-contained offline-first PWA. No build step, no backend required.
+   Module seams (DB / Providers / Tax / Portfolio / Signals / Plan / UI) are
+   kept explicit so the Phase-2 serverless engines (ML regime, sentiment,
+   macro) and Phase-3 decision/execution layers bolt on without a rewrite.
+   ============================================================================ */
+const Helm = (() => {
+'use strict';
+
+/* ---------- tiny helpers ------------------------------------------------- */
+const $ = s => document.querySelector(s);
+const el = (t,c)=>{const e=document.createElement(t);if(c)e.className=c;return e;};
+const fmt = (n,d=2)=> (n==null||isNaN(n))?'—':n.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const money = (n,ccy)=> (n==null||isNaN(n))?'—':(n<0?'-':'')+ (ccy||State.base?'':'') + new Intl.NumberFormat(undefined,{style:'currency',currency:ccy||State.base,maximumFractionDigits:2}).format(Math.abs(n));
+const pct = n => (n==null||isNaN(n))?'—':(n>=0?'+':'')+n.toFixed(2)+'%';
+const cls = n => n>0?'pos':n<0?'neg':'muted';
+/* convert an amount in `ccy` to the base currency using cached FX (parity if unknown) */
+function toBase(amt, ccy){
+  if(amt==null) return null;
+  ccy=(ccy||State.base).toUpperCase();
+  if(ccy===State.base) return amt;
+  const f=State.fx[ccy+State.base]; if(f&&f.rate) return amt*f.rate;
+  const inv=State.fx[State.base+ccy]; if(inv&&inv.rate) return amt/inv.rate;
+  return amt; // unknown rate -> assume parity (surfaced via fxMissing)
+}
+function fxMissing(ccy){ ccy=(ccy||State.base).toUpperCase(); if(ccy===State.base) return false; return !(State.fx[ccy+State.base]||State.fx[State.base+ccy]); }
+const todayISO = ()=> new Date().toISOString().slice(0,10);
+const daysBetween = (a,b)=> Math.floor((new Date(b)-new Date(a))/86400000);
+const uid = ()=> 'x'+Math.random().toString(36).slice(2,9);
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
+
+/* ---------- persistent state (localStorage; IndexedDB-ready seam) -------- */
+const DB = {
+  key:'helm.v1',
+  load(){ try{return JSON.parse(localStorage.getItem(this.key))||null;}catch(e){return null;} },
+  save(s){ localStorage.setItem(this.key, JSON.stringify(s)); }
+};
+
+/* ---------- jurisdiction-agnostic tax rule packs ------------------------- */
+/* A pack is pure config consumed by the Tax engine. Add countries here; the
+   engine never hardcodes a jurisdiction. Rates are user-overridable. */
+const JURISDICTIONS = {
+  'generic':   {name:'Generic / agnostic', ltDays:365, stcg:30, ltcg:15, wash:0},
+  'us':        {name:'United States',      ltDays:366, stcg:35, ltcg:15, wash:30},
+  'india':     {name:'India',              ltDays:366, stcg:20, ltcg:12.5, wash:0},
+  'uk':        {name:'United Kingdom',     ltDays:0,   stcg:20, ltcg:20, wash:30},
+  'germany':   {name:'Germany',            ltDays:0,   stcg:26.375, ltcg:26.375, wash:0},
+};
+
+const DEFAULT_STATE = () => ({
+  base:'USD',
+  lotMethod:'FIFO',
+  jurisdiction:'generic',
+  taxOverride:{},          // {stcg,ltcg,ltDays,wash} overrides on the pack
+  apiBase:'/api',          // Phase-2 serverless data proxy (blank '/api' = same host)
+  txns:[],                 // transactions (lots derive from these)
+  prices:{},               // symbol -> {price, ccy, asOf, src}
+  history:{},              // symbol -> [closes] (most recent last) for regime
+  fx:{},                   // 'EURUSD' -> {rate, asOf}  (currency+base key)
+  sentiment:{},            // symbol -> {score, label, n, scored, headlines, asOf}
+  regimeModel:{},          // symbol -> HMM regime {label, prob, states, trendAnn, persistenceDays}
+  macro:null,              // {regime, score, indicators, asOf} | {error}
+  targets:{}               // assetClass -> target weight %
+});
+
+let State = Object.assign(DEFAULT_STATE(), DB.load() || {});  // merge so older saves get new fields
+
+function taxRules(){
+  const p = JURISDICTIONS[State.jurisdiction] || JURISDICTIONS.generic;
+  return Object.assign({}, p, State.taxOverride);
+}
+
+/* ============================================================================
+   PROVIDERS — data abstraction layer
+   Each provider exposes async quote()/history(). Free/CORS-friendly sources
+   first; paid real-time (Polygon/Finnhub/Alpaca) drop in as new providers
+   behind the same interface. Browser CORS limits some equity feeds — those
+   route through the Phase-2 serverless proxy; here we degrade to manual.
+   ============================================================================ */
+const Providers = {
+  proxyUp:null,                              // null=unknown, true/false after a call
+  base(){ return (State.apiBase||'/api').replace(/\/$/,''); },
+  _cgMap:{btc:'bitcoin',eth:'ethereum',sol:'solana',ada:'cardano',xrp:'ripple',doge:'dogecoin',bnb:'binancecoin',usdt:'tether',usdc:'usd-coin',matic:'matic-network',dot:'polkadot',ltc:'litecoin',link:'chainlink',avax:'avalanche-2'},
+  _cgId(s){ return this._cgMap[s.toLowerCase()] || s.toLowerCase(); },
+
+  async _proxy(path){
+    const r=await fetch(this.base()+path);
+    if(!r.ok) throw new Error('proxy '+r.status);
+    const j=await r.json();
+    if(j&&j.offline) throw new Error('offline');
+    if(j&&j.error) throw new Error(j.error);
+    return j;
+  },
+
+  /* quote: serverless proxy first (equities/FX work without CORS), then a
+     direct client fallback (crypto via CoinGecko works; equities can't be
+     fetched cross-origin from a browser, so they need the proxy). */
+  async quote(sym,assetClass,ccy){
+    try{
+      const j=await this._proxy(`/quote?symbol=${encodeURIComponent(sym)}&class=${assetClass}&ccy=${encodeURIComponent(ccy||State.base)}`);
+      this.proxyUp=true;
+      return {price:j.price, ccy:(j.ccy||ccy||'USD').toUpperCase(), asOf:j.asOf||Date.now(), src:j.src||'proxy'};
+    }catch(e){ this.proxyUp=false; }
+    if(assetClass==='crypto'){
+      const id=this._cgId(sym), c=(ccy||'usd').toLowerCase();
+      const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=${c}`);
+      const j=await r.json(); const p=j[id]&&j[id][c];
+      if(p==null) throw new Error('no price');
+      return {price:p, ccy:(ccy||'USD').toUpperCase(), asOf:Date.now(), src:'coingecko*'};
+    }
+    throw new Error('needs proxy');           // deploy /api to price this asset class
+  },
+
+  async history(sym,assetClass,ccy){
+    try{ const j=await this._proxy(`/history?symbol=${encodeURIComponent(sym)}&class=${assetClass}&range=6mo&interval=1d`); return j.closes||[]; }catch(e){}
+    if(assetClass==='crypto'){
+      const id=this._cgId(sym), c=(ccy||'usd').toLowerCase();
+      const r=await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=${c}&days=120&interval=daily`);
+      const j=await r.json(); return (j.prices||[]).map(p=>p[1]);
+    }
+    return [];
+  },
+
+  async fxRate(from,to){
+    if(from===to) return 1;
+    try{ const j=await this._proxy(`/fx?from=${from}&to=${to}`); return j.rate; }catch(e){}
+    return null;
+  },
+
+  async search(q){
+    try{ const j=await this._proxy(`/search?q=${encodeURIComponent(q)}`); return j.results||[]; }catch(e){ return []; }
+  },
+
+  async macro(){ try{ return await this._proxy('/macro'); }catch(e){ return {error:e.message}; } },
+  async sentiment(sym){ try{ return await this._proxy(`/sentiment?symbol=${encodeURIComponent(sym)}`); }catch(e){ return null; } },
+  async regime(sym,assetClass){ try{ return await this._proxy(`/regime?symbol=${encodeURIComponent(sym)}&class=${assetClass||'equity'}`); }catch(e){ return null; } },
+
+  async refresh(symbols){
+    let ok=0,fail=0;
+    for(const {symbol,assetClass,ccy} of symbols){
+      try{
+        const q=await this.quote(symbol,assetClass,ccy);
+        State.prices[symbol]=q;
+        try{ const h=await this.history(symbol,assetClass,ccy); if(h&&h.length) State.history[symbol]=h; }catch(e){}
+        ok++;
+      }catch(e){ fail++; }
+    }
+    // refresh FX for any non-base currency we actually hold (using the price ccy)
+    const ccys=new Set(symbols.map(s=>(State.prices[s.symbol]&&State.prices[s.symbol].ccy)||s.ccy).filter(Boolean));
+    for(const c of ccys){ if(c&&c!==State.base){ const r=await this.fxRate(c,State.base); if(r!=null) State.fx[c+State.base]={rate:r,asOf:Date.now()}; } }
+    DB.save(State);
+    return {ok,fail,proxy:this.proxyUp};
+  }
+};
+
+/* ============================================================================
+   TAX ENGINE — jurisdiction-agnostic, lot-level
+   Builds open lots from buys, matches sells per lot method, classifies
+   short/long term by holding period, estimates liability with the active
+   rule pack, flags potential wash sales, and surfaces harvesting candidates.
+   ============================================================================ */
+const Tax = {
+  /* expand transactions into per-symbol buy lots and sell events, in order */
+  buildLots(){
+    const rules=taxRules(), method=State.lotMethod;
+    const bySym={};
+    const txns=[...State.txns].sort((a,b)=> a.date===b.date ? a.ts-b.ts : new Date(a.date)-new Date(b.date));
+    const realized=[];              // matched sells -> gain rows
+    for(const t of txns){
+      const s=(bySym[t.symbol] ||= {open:[], meta:t});
+      if(t.side==='buy'){
+        s.open.push({id:t.id, symbol:t.symbol, assetClass:t.assetClass, ccy:t.ccy,
+                     qty:t.qty, costPerUnit:(t.price + (t.fees||0)/t.qty), date:t.date});
+      } else {
+        let remaining=t.qty;
+        const proceedsPer = t.price - (t.fees||0)/t.qty;
+        // order lots per chosen method
+        let order=[...s.open];
+        if(method==='FIFO') order.sort((a,b)=> new Date(a.date)-new Date(b.date));
+        else if(method==='LIFO') order.sort((a,b)=> new Date(b.date)-new Date(a.date));
+        else if(method==='HIFO') order.sort((a,b)=> b.costPerUnit-a.costPerUnit);
+        else if(method==='AVG'){ /* collapse to one synthetic average lot */
+          const tot=s.open.reduce((x,l)=>x+l.qty,0);
+          const cost=s.open.reduce((x,l)=>x+l.qty*l.costPerUnit,0);
+          order=[{id:'avg',symbol:t.symbol,assetClass:t.assetClass,ccy:t.ccy,qty:tot,costPerUnit:tot?cost/tot:0,date:s.open[0]?.date||t.date}];
+        }
+        for(const lot of order){
+          if(remaining<=0) break;
+          const take=Math.min(lot.qty, remaining);
+          const hold=daysBetween(lot.date, t.date);
+          const longTerm = rules.ltDays>0 && hold>=rules.ltDays;
+          const gain=(proceedsPer - lot.costPerUnit)*take;
+          realized.push({symbol:t.symbol, qty:take, openDate:lot.date, closeDate:t.date,
+                         hold, longTerm, proceeds:proceedsPer*take, cost:lot.costPerUnit*take, gain});
+          remaining-=take;
+          if(method==='AVG'){ // reduce all lots proportionally
+            const ratio=take/lot.qty; s.open.forEach(l=>l.qty-=l.qty*ratio); s.open=s.open.filter(l=>l.qty>1e-9);
+          } else { lot.qty-=take; }
+        }
+        s.open=s.open.filter(l=>l.qty>1e-9);
+      }
+    }
+    return {bySym, realized};
+  },
+  /* open lots with current valuation + holding-period + wash-sale flag */
+  openLots(){
+    const {bySym}=this.buildLots(), rules=taxRules(), out=[];
+    const recentBuys={};   // symbol -> [dates] for wash-sale proximity
+    State.txns.filter(t=>t.side==='buy').forEach(t=>{(recentBuys[t.symbol] ||= []).push(t.date);});
+    for(const sym in bySym){
+      for(const lot of bySym[sym].open){
+        const q=State.prices[sym];
+        const mv=q?lot.qty*q.price:null;
+        const cost=lot.qty*lot.costPerUnit;
+        const unreal= mv==null?null: mv-cost;
+        const hold=daysBetween(lot.date, todayISO());
+        const longTerm=rules.ltDays>0 && hold>=rules.ltDays;
+        // wash-sale candidate: lot underwater AND a buy of same symbol within window of today
+        let wash=false;
+        if(rules.wash>0 && unreal!=null && unreal<0){
+          wash=(recentBuys[sym]||[]).some(d=> Math.abs(daysBetween(d,todayISO()))<=rules.wash && d!==lot.date);
+        }
+        out.push({symbol:sym, assetClass:lot.assetClass, qty:lot.qty, openDate:lot.date,
+                  cost, costPerUnit:lot.costPerUnit, price:q?q.price:null, mv, unreal, hold, longTerm, wash});
+      }
+    }
+    return out.sort((a,b)=> (a.unreal??0)-(b.unreal??0));
+  },
+  summary(){
+    const {realized}=this.buildLots(), rules=taxRules();
+    const yr=new Date().getFullYear();
+    const thisYr=realized.filter(r=> new Date(r.closeDate).getFullYear()===yr);
+    const stG=thisYr.filter(r=>!r.longTerm).reduce((x,r)=>x+r.gain,0);
+    const ltG=thisYr.filter(r=> r.longTerm).reduce((x,r)=>x+r.gain,0);
+    const stTax=Math.max(0,stG)*(rules.stcg/100);
+    const ltTax=Math.max(0,ltG)*(rules.ltcg/100);
+    const lots=this.openLots();
+    const unrealized=lots.reduce((x,l)=>x+(l.unreal||0),0);
+    return {realizedShort:stG, realizedLong:ltG, estTax:stTax+ltTax, unrealized, realizedRows:thisYr};
+  },
+  harvest(){
+    return this.openLots().filter(l=> l.unreal!=null && l.unreal<0)
+      .map(l=>({...l, benefit: Math.abs(l.unreal)*((l.longTerm?taxRules().ltcg:taxRules().stcg)/100)}))
+      .sort((a,b)=> b.benefit-a.benefit);
+  }
+};
+
+/* ============================================================================
+   PORTFOLIO — positions, valuation, allocation, P/L
+   ============================================================================ */
+const Portfolio = {
+  positions(){
+    const bySym={};
+    for(const t of State.txns){
+      const p=(bySym[t.symbol] ||= {symbol:t.symbol, assetClass:t.assetClass, ccy:t.ccy, qty:0, cost:0});
+      if(t.side==='buy'){ p.qty+=t.qty; p.cost+=t.qty*t.price + (t.fees||0); }
+      else { const avg=p.qty? p.cost/p.qty:0; p.qty-=t.qty; p.cost-=avg*t.qty; }
+    }
+    return Object.values(bySym).filter(p=>p.qty>1e-9).map(p=>{
+      const q=State.prices[p.symbol];
+      const price=q?q.price:null;
+      const priceCcy=q?q.ccy:p.ccy;                  // value is quoted in the price's ccy
+      const mv= price!=null? p.qty*price : null;      // native (price ccy)
+      const unreal= mv!=null? mv-p.cost : null;
+      const ret= (mv!=null&&p.cost>0)? (unreal/p.cost*100):null;
+      const mvBase= toBase(mv, priceCcy);             // converted to base for totals/weights
+      const costBase= toBase(p.cost, p.ccy);
+      return {...p, price, priceCcy, mv, mvBase, costBase, unreal, ret,
+              avgCost:p.qty?p.cost/p.qty:0, src:q?q.src:null, asOf:q?q.asOf:null};
+    }).sort((a,b)=> (b.mvBase||0)-(a.mvBase||0));
+  },
+  totals(){
+    const ps=this.positions();
+    const mv=ps.reduce((x,p)=>x+(p.mvBase||0),0);
+    const cost=ps.reduce((x,p)=>x+(p.costBase||0),0);
+    const priced=ps.filter(p=>p.mv!=null);
+    const fxGaps=ps.some(p=> p.mv!=null && fxMissing(p.priceCcy));
+    return {value:mv, cost, unreal:mv-cost, ret: cost>0?((mv-cost)/cost*100):null,
+            positions:ps.length, pricedFrac: ps.length? priced.length/ps.length : 1, fxGaps};
+  },
+  allocation(){
+    const ps=this.positions(); const tot=ps.reduce((x,p)=>x+(p.mvBase||0),0)||1;
+    const byClass={};
+    ps.forEach(p=>{ byClass[p.assetClass]=(byClass[p.assetClass]||0)+(p.mvBase||0); });
+    return Object.entries(byClass).map(([k,v])=>({label:k, value:v, weight:v/tot*100}))
+      .sort((a,b)=>b.value-a.value);
+  }
+};
+
+/* ============================================================================
+   SIGNALS — Phase-1 client-side regime + rule-based decision hints
+   Regime is derived from price history we already cache (trend vs short MA,
+   realized volatility). Sentiment & macro engines are Phase-2 (serverless);
+   their slots are rendered as "pending" so the UI contract is already real.
+   ============================================================================ */
+const Signals = {
+  regimeOf(closes){
+    if(!closes||closes.length<25) return {state:'unknown', trend:null, vol:null};
+    const n=closes.length;
+    const sma=(arr,k)=> arr.slice(-k).reduce((x,v)=>x+v,0)/k;
+    const fast=sma(closes,20), slow=sma(closes,50<n?50:n);
+    const trend=(fast-slow)/slow*100;
+    const rets=[]; for(let i=1;i<n;i++) rets.push(Math.log(closes[i]/closes[i-1]));
+    const mean=rets.reduce((x,v)=>x+v,0)/rets.length;
+    const variance=rets.reduce((x,v)=>x+(v-mean)**2,0)/rets.length;
+    const vol=Math.sqrt(variance*252)*100;            // annualized %
+    let state;
+    if(vol>55) state='crisis';
+    else if(trend>1.5) state='bull';
+    else if(trend<-1.5) state='bear';
+    else state='chop';
+    return {state, trend, vol};
+  },
+  portfolioRegime(){
+    // weight each position's regime by market value; reduce to a headline
+    const ps=Portfolio.positions(); const tot=ps.reduce((x,p)=>x+(p.mvBase||0),0)||1;
+    const rows=ps.map(p=>{
+      const m=State.regimeModel[p.symbol], w=(p.mvBase||0)/tot;
+      if(m&&m.label){ const st=m.states&&m.states[m.state];
+        return {symbol:p.symbol, w, state:m.label, trend:m.trendAnn, vol:st?st.volAnn:null, prob:m.prob, persist:m.persistenceDays, src:'hmm'}; }
+      const h=this.regimeOf(State.history[p.symbol]);
+      return {symbol:p.symbol, w, state:h.state, trend:h.trend, vol:h.vol, prob:null, src:'trend'};
+    });
+    const score={bull:1,chop:0,bear:-1,crisis:-1.5,unknown:0};
+    const net=rows.reduce((x,r)=>x+ (score[r.state]||0)*r.w,0);
+    const head= net>0.4?'bull': net<-0.6?'crisis': net<-0.2?'bear':'chop';
+    return {head, net, rows};
+  },
+  hints(){
+    const out=[]; const tax=Tax.summary(); const h=Tax.harvest();
+    const reg=this.portfolioRegime();
+    if(h.length){ const top=h[0];
+      out.push({kind:'tax', tone:'good', text:`Harvest candidate: realizing ${top.symbol} (${money(top.unreal)} loss) could offset ~${money(top.benefit)} in tax.`}); }
+    const wash=Tax.openLots().filter(l=>l.wash);
+    if(wash.length) out.push({kind:'tax', tone:'warn', text:`${wash.length} lot(s) flagged for possible wash-sale — review before harvesting.`});
+    if(reg.head==='crisis'||reg.head==='bear') out.push({kind:'regime', tone:'warn', text:`Portfolio regime is ${reg.head.toUpperCase()} (score ${reg.net.toFixed(2)}). Consider defensive rebalancing/hedges.`});
+    if(reg.head==='bull') out.push({kind:'regime', tone:'good', text:`Portfolio regime is BULL (score ${reg.net.toFixed(2)}). Trend-following tilts favored.`});
+    const m=State.macro;
+    if(m && !m.error){
+      const I=m.indicators||{};
+      if(m.score<-0.3) out.push({kind:'macro', tone:'warn', text:`Macro regime ${m.regime.toUpperCase().replace(/-/g,' ')} (score ${m.score.toFixed(2)}) — curve ${I.yieldCurve==null?'—':fmt(I.yieldCurve,2)+'%'}, inflation ${I.inflationYoY==null?'—':fmt(I.inflationYoY,1)+'%'}. Risk-off backdrop; favor quality/defensives.`});
+      else if(m.score>0.3) out.push({kind:'macro', tone:'good', text:`Macro regime ${m.regime.toUpperCase()} (score ${m.score.toFixed(2)}) — supportive backdrop for risk assets.`});
+    }
+    const bear=Object.entries(State.sentiment||{}).map(([s,v])=>({s,...v})).filter(r=>r.label==='bearish').sort((a,b)=>a.score-b.score)[0];
+    if(bear) out.push({kind:'sentiment', tone:'warn', text:`Bearish news sentiment on ${bear.s}${bear.scored?` (${bear.scored} headlines)`:''} — review before adding to the position.`});
+    const drift=Plan.drift().filter(d=>Math.abs(d.gap)>5);
+    if(drift.length) out.push({kind:'plan', tone:'info', text:`${drift.length} asset class(es) drifted >5% from target — see Plan tab.`});
+    out.push({kind:'engine', tone:'muted', text:`Next: Phase 2c upgrades regime to a server-side ML model (vol-clustering/HMM); Phase 3 fuses these into ranked, tax-aware execution plans.`});
+    return out;
+  }
+};
+
+/* ============================================================================
+   PLAN — target allocation drift & rebalancing
+   ============================================================================ */
+const Plan = {
+  drift(){
+    const alloc=Portfolio.allocation(); const tot=alloc.reduce((x,a)=>x+a.value,0)||1;
+    const classes=new Set([...alloc.map(a=>a.label), ...Object.keys(State.targets)]);
+    return [...classes].map(c=>{
+      const cur=(alloc.find(a=>a.label===c)?.weight)||0;
+      const tgt=State.targets[c]||0;
+      return {label:c, current:cur, target:tgt, gap:cur-tgt, value:(alloc.find(a=>a.label===c)?.value)||0, tradeValue:(tgt-cur)/100*tot};
+    }).sort((a,b)=> Math.abs(b.gap)-Math.abs(a.gap));
+  }
+};
+
+/* ============================================================================
+   DECIDE — fuse every engine into ranked, tax-aware recommendations
+   Consumes Portfolio + Tax + Signals(regime) + macro + sentiment + Plan drift
+   and emits concrete actions with a specific lot plan and estimated tax impact.
+   ============================================================================ */
+const Decide = {
+  ccyOf(sym){ return (State.prices[sym]&&State.prices[sym].ccy)||State.base; },
+
+  /* choose the tax-optimal lots to sell for a target base-currency value:
+     realize losses first (harvest), then long-term gains, then short-term. */
+  lotPlan(filterFn, targetBaseValue){
+    let lots=Tax.openLots().filter(l=>l.price!=null && filterFn(l))
+      .map(l=>({...l, gpu:l.price-l.costPerUnit, valBase:toBase(l.mv,this.ccyOf(l.symbol))}));
+    lots.sort((a,b)=>{
+      const aL=a.gpu<0, bL=b.gpu<0;
+      if(aL!==bL) return aL?-1:1;                 // losses before gains
+      if(aL&&bL) return a.gpu-b.gpu;              // biggest loss first
+      if(a.longTerm!==b.longTerm) return a.longTerm?-1:1;  // long-term gains before short
+      return a.gpu-b.gpu;                          // smaller gain first
+    });
+    const chosen=[]; let rem=targetBaseValue, gain=0, tax=0;
+    const r=taxRules();
+    for(const l of lots){
+      if(rem<=0.01) break;
+      const unitBase=l.valBase/l.qty;
+      const take=Math.min(l.qty, rem/unitBase);
+      if(take<=1e-9) continue;
+      const g=(l.price-l.costPerUnit)*take;       // native ccy gain
+      const gBase=toBase(g,this.ccyOf(l.symbol));
+      const t=gBase>0?gBase*((l.longTerm?r.ltcg:r.stcg)/100):0;
+      chosen.push({symbol:l.symbol, qty:take, term:l.longTerm?'long':'short', gainBase:gBase, wash:l.wash});
+      gain+=gBase; tax+=t; rem-=take*unitBase;
+    }
+    return {chosen, gainBase:gain, taxBase:tax};
+  },
+
+  recommendations(){
+    const recs=[];
+    const ps=Portfolio.positions();
+    const totV=Portfolio.totals().value||1;
+    const reg=Signals.portfolioRegime();
+    const symReg={}; reg.rows.forEach(r=>symReg[r.symbol]=r.state);
+    const macro=State.macro, sent=State.sentiment||{};
+    const sLabel=s=>sent[s]&&sent[s].label, sScore=s=>(sent[s]&&sent[s].score)||0;
+
+    // 1) tax-loss harvesting
+    Tax.harvest().forEach(l=>{
+      const vBase=toBase(l.mv,this.ccyOf(l.symbol));
+      if(l.wash){ recs.push({cat:'tax', action:'Hold — wash-sale risk', symbol:l.symbol, valueBase:vBase, priority:32,
+        rationale:['Underwater lot, but a recent buy may trigger a wash sale','Wait past the window or harvest a different lot'], taxImpact:0}); return; }
+      let pri=46 + Math.min(38, (l.benefit/totV)*4000);
+      const r=[`Realize ${money(l.unreal)} loss`, `~${money(l.benefit)} est. tax saved`, l.longTerm?'long-term lot':'short-term lot'];
+      if(sLabel(l.symbol)==='bearish'){ pri+=8; r.push('news sentiment bearish — exit aligns'); }
+      if(symReg[l.symbol]==='bear'||symReg[l.symbol]==='crisis'){ pri+=6; r.push('weak price regime'); }
+      recs.push({cat:'tax', action:'Harvest loss', symbol:l.symbol, qty:l.qty, valueBase:vBase,
+        priority:Math.round(pri), rationale:r, taxImpact:-l.benefit});
+    });
+
+    // 2) rebalance toward targets (tax-aware on the sell side)
+    Plan.drift().forEach(d=>{
+      if(Math.abs(d.gap)<5) return;
+      const val=Math.abs(d.tradeValue);
+      if(d.gap>0){
+        const plan=this.lotPlan(l=>l.assetClass===d.label, val);
+        const r=[`${d.label} is ${fmt(d.gap,1)}% over target`, `trim ~${money(val)}`];
+        if(plan.taxBase>0) r.push(`est. tax on trim ~${money(plan.taxBase)}`);
+        if(plan.gainBase<0) r.push(`harvests ${money(plan.gainBase)} of losses`);
+        recs.push({cat:'rebalance', action:`Trim ${d.label}`, valueBase:val, priority:Math.round(40+Math.min(30,Math.abs(d.gap))),
+          rationale:r, lots:plan.chosen, taxImpact:-plan.taxBase});
+      } else {
+        let pri=38+Math.min(30,Math.abs(d.gap));
+        const r=[`${d.label} is ${fmt(Math.abs(d.gap),1)}% under target`, `add ~${money(val)}`];
+        if(macro&&!macro.error&&macro.score<-0.3&&(d.label==='equity'||d.label==='crypto')){ pri-=8; r.push('macro risk-off — phase in gradually'); }
+        recs.push({cat:'rebalance', action:`Add to ${d.label}`, valueBase:val, priority:Math.round(pri), rationale:r});
+      }
+    });
+
+    // 3) concentration risk
+    ps.forEach(p=>{
+      const w=(p.mvBase||0)/totV*100;
+      if(w>25){
+        const plan=this.lotPlan(l=>l.symbol===p.symbol, (w-20)/100*totV);
+        recs.push({cat:'risk', action:'Reduce concentration', symbol:p.symbol, valueBase:p.mvBase,
+          priority:Math.round(50+Math.min(30,w-25)),
+          rationale:[`${p.symbol} is ${fmt(w,1)}% of the portfolio`, 'single-name concentration risk', plan.taxBase>0?`est. tax ~${money(plan.taxBase)}`:'tax-efficient lots selected'],
+          lots:plan.chosen, taxImpact:-plan.taxBase});
+      }
+    });
+
+    // 4) macro + regime defensive overlay
+    if(macro&&!macro.error&&macro.score<-0.3 && (reg.head==='bear'||reg.head==='crisis')){
+      recs.push({cat:'macro', action:'Raise defensives / hedge', priority:64,
+        rationale:[`Macro ${macro.regime.replace(/-/g,' ')} (${macro.score.toFixed(2)}) + portfolio regime ${reg.head}`, 'consider cash/bonds/hedges and trimming high-beta names']});
+    }
+
+    // 5) sentiment-driven profit-taking
+    ps.forEach(p=>{
+      if(sLabel(p.symbol)==='bearish' && (p.unreal||0)>0 && (p.mvBase||0)/totV*100>5){
+        recs.push({cat:'sentiment', action:'Consider trimming', symbol:p.symbol, valueBase:p.mvBase,
+          priority:Math.round(42+Math.min(16,-sScore(p.symbol)*20)),
+          rationale:[`Bearish news sentiment on ${p.symbol}`, `sitting on a ${money(p.unreal)} gain — consider taking some profit`]});
+      }
+    });
+
+    return recs.sort((a,b)=>b.priority-a.priority);
+  }
+};
+
+/* ============================================================================
+   BACKTEST — strategy lab over cached daily closes (no lookahead)
+   ============================================================================ */
+const Backtest = {
+  _avg(a,i,k){ let s=0,c=0; for(let j=Math.max(0,i-k+1);j<=i;j++){ s+=a[j]; c++; } return s/c; },
+  run(symbol, strat, p){
+    const closes=State.history[symbol];
+    if(!closes||closes.length<30) return {error:'Need ~30+ days of price history — refresh prices first.'};
+    const n=closes.length, pos=new Array(n).fill(0);
+    if(strat==='buyhold') pos.fill(1);
+    else if(strat==='sma'){ const f=p.p1||10, s=p.p2||30;
+      for(let i=0;i<n;i++){ pos[i]= i<s?0:(this._avg(closes,i,f)>this._avg(closes,i,s)?1:0); } }
+    else if(strat==='momentum'){ const k=p.p1||20;
+      for(let i=0;i<n;i++){ pos[i]= (i>=k && closes[i]>closes[i-k])?1:0; } }
+    let eq=1, peak=1, maxdd=0; const rets=[], curve=[1], bh=[1];
+    for(let i=1;i<n;i++){ const r=closes[i]/closes[i-1]-1; const pr=pos[i-1]*r; eq*=1+pr;
+      rets.push(pr); curve.push(eq); peak=Math.max(peak,eq); maxdd=Math.min(maxdd,eq/peak-1); bh.push(closes[i]/closes[0]); }
+    const mean=rets.reduce((a,b)=>a+b,0)/rets.length;
+    const vol=Math.sqrt(rets.reduce((a,b)=>a+(b-mean)**2,0)/rets.length)*Math.sqrt(252)*100;
+    return { totalRet:(eq-1)*100, cagr:(Math.pow(eq,252/n)-1)*100, vol,
+      sharpe: vol? (mean*252)/(vol/100):0, maxdd:maxdd*100, bh:(closes[n-1]/closes[0]-1)*100,
+      exposure: pos.reduce((a,b)=>a+b,0)/n*100, curve, bhCurve:bh };
+  }
+};
+
+/* ============================================================================
+   UI / rendering
+   ============================================================================ */
+const COLORS={equity:'#4cc9f0',etf:'#9b8cff',crypto:'#ffb84d',option:'#ff5d73',forex:'#2ec27e',bond:'#8aa0c6'};
+const REGIME_COLOR={bull:'#2ec27e',chop:'#ffb84d',bear:'#ff5d73',crisis:'#b3122e',unknown:'#5b6f93'};
+
+function renderDash(){
+  const t=Portfolio.totals();
+  $('#kpis').innerHTML='';
+  const kpis=[
+    ['Portfolio value', money(t.value), ''],
+    ['Unrealized P/L', money(t.unreal), cls(t.unreal)],
+    ['Total return', pct(t.ret), cls(t.ret)],
+    ['Positions', t.positions, ''],
+  ];
+  kpis.forEach(([l,v,c])=>{const p=el('div','panel kpi');p.innerHTML=`<div class="l">${l}</div><div class="v ${c}">${v}</div>`;$('#kpis').appendChild(p);});
+  if(t.pricedFrac<1){ const w=el('div','src');w.style.marginTop='6px';w.textContent=`${Math.round(t.pricedFrac*100)}% of positions priced — tap ↻ Prices on Holdings (deploy /api proxy to price equities without CORS).`;$('#kpis').appendChild(w);}
+  if(t.fxGaps){ const w=el('div','src');w.style.marginTop='4px';w.textContent='Some holdings are in a non-base currency without an FX rate yet — refresh prices (needs the /api proxy) to convert accurately.';$('#kpis').appendChild(w);}
+
+  // regime
+  const reg=Signals.portfolioRegime();
+  const rp=$('#regimePanel');
+  rp.innerHTML=`<div class="regime"><span class="dot" style="background:${REGIME_COLOR[reg.head]}"></span>
+     Headline regime: <span style="color:${REGIME_COLOR[reg.head]}">${reg.head.toUpperCase()}</span>
+     <span class="muted" style="font-weight:400">· net score ${reg.net.toFixed(2)}</span></div>`;
+  if(reg.rows.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Weight</th><th>Trend%</th><th>Vol%</th><th>State</th><th>Conf</th></tr>';
+    reg.rows.sort((a,b)=>b.w-a.w).forEach(r=>{
+      const tr=el('tr');tr.innerHTML=`<td>${r.symbol} <span class="tag ${r.src==='hmm'?'lt':''}">${r.src==='hmm'?'HMM':'trend'}</span></td>
+        <td>${fmt(r.w*100,1)}%</td>
+        <td class="${cls(r.trend)}">${r.trend==null?'—':fmt(r.trend,1)}</td>
+        <td>${r.vol==null?'—':fmt(r.vol,0)}</td>
+        <td><span class="regime"><span class="dot" style="background:${REGIME_COLOR[r.state]}"></span>${r.state}</span></td>
+        <td>${r.prob==null?'—':fmt(r.prob*100,0)+'%'}</td>`;
+      tb.appendChild(tr);});
+    rp.appendChild(tb);
+  } else rp.innerHTML+='<div class="empty">Add holdings and refresh prices to compute regime.</div>';
+
+  // allocation
+  const alloc=Portfolio.allocation();
+  $('#allocSub').textContent= alloc.length? `${alloc.length} asset classes`:'';
+  const ap=$('#allocPanel');
+  if(alloc.length){
+    const tot=alloc.reduce((x,a)=>x+a.value,0)||1;
+    const bar=el('div','bar');
+    alloc.forEach(a=>{const i=el('i');i.style.width=(a.value/tot*100)+'%';i.style.background=COLORS[a.label]||'#888';bar.appendChild(i);});
+    ap.innerHTML='';ap.appendChild(bar);
+    const lg=el('div','legend');
+    alloc.forEach(a=>{const s=el('span');s.innerHTML=`<span class="dot" style="background:${COLORS[a.label]||'#888'}"></span>${a.label} ${fmt(a.weight,1)}%`;lg.appendChild(s);});
+    ap.appendChild(lg);
+  } else ap.innerHTML='<div class="empty">No holdings yet.</div>';
+
+  renderMacro(); renderSentiment();
+
+  // signals
+  const sp=$('#signalsPanel');sp.innerHTML='';
+  const hints=Signals.hints();
+  hints.forEach(h=>{
+    const tone={good:'var(--green)',warn:'var(--amber)',info:'var(--blue)',muted:'var(--faint)'}[h.tone]||'var(--dim)';
+    const d=el('div');d.style.cssText=`padding:8px 10px;border-left:3px solid ${tone};margin-bottom:8px;background:rgba(255,255,255,.02);border-radius:0 8px 8px 0`;
+    d.innerHTML=`<span class="tag" style="border-color:${tone};color:${tone}">${h.kind}</span> ${h.text}`;
+    sp.appendChild(d);
+  });
+}
+
+const REC_COLOR={tax:'var(--green)',rebalance:'var(--blue)',risk:'var(--red)',macro:'var(--amber)',sentiment:'var(--purple)'};
+function renderRecos(){
+  const recs=Decide.recommendations();
+  [['#recTop',3],['#recPanel',99]].forEach(([sel,lim])=>{
+    const host=$(sel); host.innerHTML='';
+    if(!recs.length){ host.innerHTML='<div class="empty">No actions needed — portfolio is on target with no harvesting, concentration or risk flags.</div>'; return; }
+    recs.slice(0,lim).forEach(r=>{
+      const col=REC_COLOR[r.cat]||'var(--dim)';
+      const card=el('div'); card.style.cssText=`padding:10px 12px;border-left:3px solid ${col};margin-bottom:8px;background:rgba(255,255,255,.02);border-radius:0 10px 10px 0`;
+      let h=`<div class="flex" style="justify-content:space-between"><div><span class="tag" style="border-color:${col};color:${col}">${r.cat}</span> <b>${r.action}</b>${r.symbol?` · ${r.symbol}`:''}</div>`+
+            `<span class="src">P${r.priority}${r.valueBase?` · ${money(r.valueBase)}`:''}</span></div>`;
+      h+=`<div class="muted" style="font-size:.82rem;margin-top:4px">${r.rationale.filter(Boolean).join(' · ')}</div>`;
+      if(r.lots&&r.lots.length){
+        h+=`<div class="src" style="margin-top:5px">Lot plan: `+r.lots.map(l=>`sell ${fmt(l.qty,2)} ${l.symbol} <span class="tag ${l.term==='long'?'lt':'st'}">${l.term}</span>${l.wash?' <span class="tag wash">wash?</span>':''} (${l.gainBase>=0?'+':''}${money(l.gainBase)})`).join(' · ')+`</div>`;
+      }
+      if(r.taxImpact){ const t=r.taxImpact; h+=`<div class="src" style="margin-top:3px;color:${t>0?'var(--green)':'var(--amber)'}">Est. tax impact: ${t>0?'saves ':''}${money(Math.abs(t))}${t>0?'':' owed'}</div>`; }
+      card.innerHTML=h; host.appendChild(card);
+    });
+    if(recs.length>lim) { const m=el('div','src'); m.style.marginTop='4px'; m.textContent=`+${recs.length-lim} more in the Plan tab`; host.appendChild(m); }
+  });
+}
+
+function renderBacktestControls(){
+  const sel=$('#bt-symbol'); const cur=sel.value;
+  const syms=Object.keys(State.history||{}).filter(s=>State.history[s]&&State.history[s].length>=30);
+  sel.innerHTML=''; syms.forEach(s=>{const o=el('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  if(syms.includes(cur)) sel.value=cur;
+  syncBtLabels();
+}
+function syncBtLabels(){
+  const strat=$('#bt-strat').value;
+  $('#bt-l1').textContent= strat==='momentum'?'Lookback':'Fast';
+  $('#bt-l2').parentElement.style.display= strat==='sma'?'':'none';
+}
+function runBacktest(){
+  const sym=$('#bt-symbol').value, strat=$('#bt-strat').value;
+  const r=Backtest.run(sym, strat, {p1:parseInt($('#bt-p1').value), p2:parseInt($('#bt-p2').value)});
+  const box=$('#btResult'); box.innerHTML='';
+  if(r.error){ box.innerHTML=`<div class="empty">${r.error}</div>`; return; }
+  const tb=el('table'); tb.innerHTML='<tr><th>Metric</th><th>Strategy</th><th>Buy &amp; hold</th></tr>';
+  [['Total return',pct(r.totalRet),pct(r.bh)],['CAGR',pct(r.cagr),'—'],['Volatility (ann.)',fmt(r.vol,1)+'%','—'],
+   ['Sharpe',fmt(r.sharpe,2),'—'],['Max drawdown',pct(r.maxdd),'—'],['Time in market',fmt(r.exposure,0)+'%','100%']]
+   .forEach(([k,a,b])=>{const tr=el('tr');tr.innerHTML=`<td>${k}</td><td class="${a&&a[0]==='-'?'neg':'pos'}">${a}</td><td>${b}</td>`;tb.appendChild(tr);});
+  box.appendChild(spark(r.curve, r.bhCurve)); box.appendChild(tb);
+  const beat=r.totalRet>r.bh; const note=el('div','src'); note.style.marginTop='6px';
+  note.textContent= `${beat?'Beat':'Lagged'} buy & hold by ${fmt(Math.abs(r.totalRet-r.bh),1)} pts over ${State.history[sym].length} days. Past performance ≠ future results.`;
+  box.appendChild(note);
+}
+function spark(a,b){
+  const w=300,h=54,pad=3, all=a.concat(b||[]), lo=Math.min(...all), hi=Math.max(...all), rng=(hi-lo)||1;
+  const path=arr=>arr.map((v,i)=>`${(i/(arr.length-1))*(w-2*pad)+pad},${h-pad-((v-lo)/rng)*(h-2*pad)}`).join(' ');
+  const ns='http://www.w3.org/2000/svg'; const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.setAttribute('width','100%'); svg.style.marginTop='8px';
+  const mk=(pts,c,wd)=>{const p=document.createElementNS(ns,'polyline');p.setAttribute('points',pts);p.setAttribute('fill','none');p.setAttribute('stroke',c);p.setAttribute('stroke-width',wd);svg.appendChild(p);};
+  if(b) mk(path(b),'#5b6f93',1.2); mk(path(a),'#4cc9f0',1.8);
+  return svg;
+}
+
+function renderMacro(){
+  const m=State.macro, p=$('#macroPanel');
+  if(!m){ p.innerHTML='<div class="empty">Tap ↻ Prices to load macro (needs the /api proxy + a free FRED_API_KEY).</div>'; return; }
+  if(m.error){ p.innerHTML=`<div class="empty">Macro unavailable: ${m.error}.<br>Add a free <b>FRED_API_KEY</b> to the proxy (fred.stlouisfed.org).</div>`; return; }
+  const col=m.score>0.3?'var(--green)':m.score<-0.3?'var(--red)':'var(--amber)', I=m.indicators;
+  p.innerHTML=`<div class="regime"><span class="dot" style="background:${col}"></span>
+    <span style="color:${col}">${m.regime.toUpperCase().replace(/-/g,' ')}</span>
+    <span class="muted" style="font-weight:400">· score ${m.score.toFixed(2)}</span></div>`;
+  const tb=el('table');tb.innerHTML='<tr><th>Indicator</th><th>Latest</th><th>Read</th></tr>';
+  [['Yield curve 10y–2y', I.yieldCurve==null?'—':fmt(I.yieldCurve,2)+'%', I.yieldCurve!=null&&I.yieldCurve<0?'inverted':'normal'],
+   ['Fed funds rate', I.fedFunds==null?'—':fmt(I.fedFunds,2)+'%', I.fedFundsChg6m>0.1?'tightening':I.fedFundsChg6m<-0.1?'easing':'steady'],
+   ['Inflation CPI YoY', I.inflationYoY==null?'—':fmt(I.inflationYoY,1)+'%', I.inflationYoY>3?'hot':I.inflationYoY<2?'cool':'on target'],
+   ['Unemployment', I.unemployment==null?'—':fmt(I.unemployment,1)+'%', I.unemploymentChg6m>0.2?'rising':I.unemploymentChg6m<-0.1?'falling':'steady']]
+   .forEach(([k,v,r])=>{const tr=el('tr');tr.innerHTML=`<td>${k}</td><td>${v}</td><td><span class="tag">${r}</span></td>`;tb.appendChild(tr);});
+  p.appendChild(tb);
+  const s=el('div','src');s.style.marginTop='6px';s.textContent='Source: FRED · hourly';p.appendChild(s);
+}
+
+function renderSentiment(){
+  const p=$('#sentPanel');
+  const rows=Object.entries(State.sentiment||{}).map(([symbol,v])=>({symbol,...v}));
+  if(!rows.length){ p.innerHTML='<div class="empty">Tap ↻ Prices to score news sentiment for your holdings.</div>'; return; }
+  const ps=Portfolio.positions(); const tot=ps.reduce((x,q)=>x+(q.mvBase||0),0)||1;
+  let agg=0; rows.forEach(r=>{const pos=ps.find(q=>q.symbol===r.symbol); agg+=r.score*(pos?(pos.mvBase||0)/tot:0);});
+  const head= agg>0.15?'bullish':agg<-0.15?'bearish':'neutral';
+  const hc={bullish:'var(--green)',bearish:'var(--red)',neutral:'var(--amber)'}[head];
+  p.innerHTML=`<div class="regime"><span class="dot" style="background:${hc}"></span>Portfolio tone:
+    <span style="color:${hc}">${head}</span> <span class="muted" style="font-weight:400">· ${rows.length} scored</span></div>`;
+  const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Headlines</th><th>Tone</th></tr>';
+  rows.sort((a,b)=>a.score-b.score).forEach(r=>{const c={bullish:'var(--green)',bearish:'var(--red)',neutral:'var(--dim)'}[r.label]||'var(--dim)';
+    const tr=el('tr');tr.innerHTML=`<td>${r.symbol}</td><td>${r.scored==null?'—':r.scored+'/'+(r.n||0)}</td><td style="color:${c}">${r.label}</td>`;tb.appendChild(tr);});
+  p.appendChild(tb);
+  const s=el('div','src');s.style.marginTop='6px';s.textContent='Source: news headlines + lexicon (set FINNHUB_API_KEY for provider sentiment)';p.appendChild(s);
+}
+
+function renderHoldings(){
+  const ps=Portfolio.positions();
+  const pp=$('#positionsPanel');
+  if(ps.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Class</th><th>Qty</th><th>Avg cost</th><th>Price</th><th>Value</th><th>P/L</th><th>Ret</th></tr>';
+    ps.forEach(p=>{const tr=el('tr');tr.innerHTML=
+      `<td><b>${p.symbol}</b> ${p.src?`<span class="src">${p.src}</span>`:''}</td>
+       <td><span class="tag">${p.assetClass}</span></td>
+       <td>${fmt(p.qty,4)}</td><td>${money(p.avgCost,p.ccy)}</td>
+       <td>${p.price==null?'—':money(p.price,p.priceCcy)}</td>
+       <td>${p.mv==null?'—':money(p.mv,p.priceCcy)}</td>
+       <td class="${cls(p.unreal)}">${p.unreal==null?'—':money(p.unreal)}</td>
+       <td class="${cls(p.ret)}">${pct(p.ret)}</td>`;
+      pp.appendChild(tr);});
+    pp.innerHTML='';pp.appendChild(tb);
+  } else pp.innerHTML='<div class="empty">No positions. Tap “+ Transaction”.</div>';
+
+  const xp=$('#txnsPanel');
+  if(State.txns.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Date</th><th>Action</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Fees</th><th></th></tr>';
+    [...State.txns].sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(t=>{
+      const tr=el('tr');tr.innerHTML=`<td>${t.date}</td><td class="${t.side==='buy'?'pos':'neg'}">${t.side}</td>
+        <td>${t.symbol}</td><td>${fmt(t.qty,4)}</td><td>${money(t.price,t.ccy)}</td><td>${fmt(t.fees||0)}</td>
+        <td><button class="sm ghost" data-del="${t.id}">✕</button></td>`;
+      tb.appendChild(tr);});
+    xp.innerHTML='';xp.appendChild(tb);
+    xp.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{State.txns=State.txns.filter(t=>t.id!==b.dataset.del);DB.save(State);renderAll();toast('Transaction removed');});
+  } else xp.innerHTML='<div class="empty">No transactions.</div>';
+}
+
+function renderTax(){
+  const r=taxRules();
+  $('#taxJurSub').textContent=`${(JURISDICTIONS[State.jurisdiction]||{}).name} · ${State.lotMethod} · LT≥${r.ltDays||'—'}d · ST ${r.stcg}% / LT ${r.ltcg}%`;
+  const s=Tax.summary();
+  $('#taxKpis').innerHTML='';
+  [['Unrealized P/L',money(s.unrealized),cls(s.unrealized)],
+   ['Realized — short',money(s.realizedShort),cls(s.realizedShort)],
+   ['Realized — long',money(s.realizedLong),cls(s.realizedLong)],
+   ['Est. tax (YTD)',money(s.estTax),s.estTax>0?'neg':'muted']]
+   .forEach(([l,v,c])=>{const p=el('div','panel kpi');p.innerHTML=`<div class="l">${l}</div><div class="v ${c}">${v}</div>`;$('#taxKpis').appendChild(p);});
+
+  const lots=Tax.openLots(); const lp=$('#lotsPanel');
+  if(lots.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Qty</th><th>Open</th><th>Held</th><th>Cost</th><th>Value</th><th>Unrl.</th><th>Term</th></tr>';
+    lots.forEach(l=>{const tr=el('tr');tr.innerHTML=
+      `<td>${l.symbol} ${l.wash?'<span class="tag wash">wash?</span>':''}</td>
+       <td>${fmt(l.qty,4)}</td><td>${l.openDate}</td><td>${l.hold}d</td>
+       <td>${money(l.cost)}</td><td>${l.mv==null?'—':money(l.mv)}</td>
+       <td class="${cls(l.unreal)}">${l.unreal==null?'—':money(l.unreal)}</td>
+       <td><span class="tag ${l.longTerm?'lt':'st'}">${l.longTerm?'long':'short'}</span></td>`;
+      tb.appendChild(tr);});
+    lp.innerHTML='';lp.appendChild(tb);
+  } else lp.innerHTML='<div class="empty">No open lots.</div>';
+
+  const h=Tax.harvest(); const hp=$('#harvestPanel');
+  if(h.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Qty</th><th>Loss</th><th>Term</th><th>Est. tax saved</th></tr>';
+    h.forEach(l=>{const tr=el('tr');tr.innerHTML=`<td>${l.symbol} ${l.wash?'<span class="tag wash">wash?</span>':''}</td>
+      <td>${fmt(l.qty,4)}</td><td class="neg">${money(l.unreal)}</td>
+      <td><span class="tag ${l.longTerm?'lt':'st'}">${l.longTerm?'long':'short'}</span></td>
+      <td class="pos">${money(l.benefit)}</td>`;tb.appendChild(tr);});
+    hp.innerHTML='';hp.appendChild(tb);
+  } else hp.innerHTML='<div class="empty">No underwater lots — nothing to harvest.</div>';
+
+  const rp=$('#realizedPanel');
+  if(s.realizedRows.length){
+    const tb=el('table');tb.innerHTML='<tr><th>Symbol</th><th>Qty</th><th>Open</th><th>Close</th><th>Gain</th><th>Term</th></tr>';
+    s.realizedRows.forEach(x=>{const tr=el('tr');tr.innerHTML=`<td>${x.symbol}</td><td>${fmt(x.qty,4)}</td>
+      <td>${x.openDate}</td><td>${x.closeDate}</td><td class="${cls(x.gain)}">${money(x.gain)}</td>
+      <td><span class="tag ${x.longTerm?'lt':'st'}">${x.longTerm?'long':'short'}</span></td>`;tb.appendChild(tr);});
+    rp.innerHTML='';rp.appendChild(tb);
+  } else rp.innerHTML='<div class="empty">No realized gains this year.</div>';
+}
+
+function renderPlan(){
+  const d=Plan.drift(); const pp=$('#planPanel');
+  const tb=el('table');tb.innerHTML='<tr><th>Asset class</th><th>Current</th><th>Target</th><th>Drift</th><th>Rebalance</th></tr>';
+  d.forEach(x=>{const tr=el('tr');tr.innerHTML=`<td>${x.label}</td><td>${fmt(x.current,1)}%</td>
+    <td><input data-tgt="${x.label}" type="number" step="any" value="${x.target||''}" style="width:80px;padding:4px 6px" placeholder="0"></td>
+    <td class="${cls(x.gap)}">${fmt(x.gap,1)}%</td>
+    <td class="${cls(x.tradeValue)}">${x.target?money(x.tradeValue):'—'}</td>`;tb.appendChild(tr);});
+  pp.innerHTML='';pp.appendChild(tb);
+  const note=el('div','src');note.style.marginTop='8px';note.textContent='Set target % per class; positive rebalance = buy, negative = sell. Tax-aware lot selection for these trades comes in Phase 3.';
+  pp.appendChild(note);
+  pp.querySelectorAll('[data-tgt]').forEach(inp=>inp.onchange=()=>{State.targets[inp.dataset.tgt]=parseFloat(inp.value)||0;DB.save(State);renderPlan();renderDash();});
+}
+
+function renderAll(){renderDash();renderRecos();renderHoldings();renderTax();renderPlan();renderBacktestControls();updatePill();}
+function updatePill(){const online=navigator.onLine;const t=Portfolio.totals();
+  const prox=Providers.proxyUp===true?'proxy':Providers.proxyUp===false?'direct':'no feed';
+  $('#dataPill').textContent=`${online?'online':'offline'} · ${prox} · ${t.positions} pos`;}
+
+/* ---------- events ------------------------------------------------------- */
+function switchView(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+}
+function openTxn(){$('#t-date').value=todayISO();$('#txnModal').classList.add('show');}
+function saveTxn(){
+  const t={id:uid(), ts:Date.now(), side:$('#t-side').value, symbol:$('#t-symbol').value.trim().toUpperCase(),
+    assetClass:$('#t-class').value, ccy:$('#t-ccy').value.trim().toUpperCase()||'USD',
+    qty:parseFloat($('#t-qty').value), price:parseFloat($('#t-price').value), fees:parseFloat($('#t-fees').value)||0,
+    date:$('#t-date').value, account:$('#t-account').value.trim()||'Main'};
+  if(!t.symbol||!(t.qty>0)||!(t.price>=0)){toast('Fill symbol, qty, price');return;}
+  State.txns.push(t);DB.save(State);$('#txnModal').classList.remove('show');
+  ['t-symbol','t-qty','t-price'].forEach(id=>$('#'+id).value='');
+  renderAll();toast('Saved — refresh prices for live value');
+}
+function openSettings(){
+  $('#s-base').value=State.base;$('#s-lot').value=State.lotMethod;
+  const js=$('#s-jur');js.innerHTML='';Object.entries(JURISDICTIONS).forEach(([k,v])=>{const o=el('option');o.value=k;o.textContent=v.name;js.appendChild(o);});
+  js.value=State.jurisdiction;
+  $('#s-api').value=(State.apiBase&&State.apiBase!=='/api')?State.apiBase:'';
+  const r=taxRules();$('#s-stcg').value=r.stcg;$('#s-ltcg').value=r.ltcg;$('#s-lt').value=r.ltDays;$('#s-wash').value=r.wash;
+  $('#setModal').classList.add('show');
+}
+function saveSettings(){
+  State.base=$('#s-base').value.trim().toUpperCase()||'USD';
+  State.lotMethod=$('#s-lot').value;State.jurisdiction=$('#s-jur').value;
+  State.apiBase=$('#s-api').value.trim()||'/api';
+  State.taxOverride={stcg:parseFloat($('#s-stcg').value),ltcg:parseFloat($('#s-ltcg').value),
+                     ltDays:parseInt($('#s-lt').value),wash:parseInt($('#s-wash').value)};
+  DB.save(State);$('#setModal').classList.remove('show');renderAll();toast('Settings saved');
+}
+async function refreshPrices(){
+  const ps=Portfolio.positions();
+  if(!ps.length){toast('No holdings to price');return;}
+  toast('Fetching prices…');
+  const res=await Providers.refresh(ps.map(p=>({symbol:p.symbol,assetClass:p.assetClass,ccy:p.ccy})));
+  // Phase-2b signal engines: macro once + news sentiment for the top holdings
+  try{ const m=await Providers.macro(); if(m) State.macro=m; }catch(e){}
+  for(const p of ps.slice(0,8)){
+    try{ const s=await Providers.sentiment(p.symbol); if(s) State.sentiment[p.symbol]=s; }catch(e){}
+    try{ const g=await Providers.regime(p.symbol,p.assetClass); if(g&&!g.error) State.regimeModel[p.symbol]=g; }catch(e){}
+  }
+  DB.save(State);
+  renderAll();
+  const via=res.proxy===true?'via proxy':res.proxy===false?'direct (no proxy)':'';
+  toast(`Priced ${res.ok}/${ps.length} ${via}${res.fail?` · ${res.fail} need /api proxy`:''}`);
+}
+
+/* ---------- demo data ---------------------------------------------------- */
+function loadDemo(){
+  State=DEFAULT_STATE();
+  State.jurisdiction='us';State.taxOverride=JURISDICTIONS.us;
+  const d=(off)=>{const x=new Date();x.setDate(x.getDate()-off);return x.toISOString().slice(0,10);};
+  State.txns=[
+    {id:uid(),ts:1,side:'buy',symbol:'AAPL',assetClass:'equity',ccy:'USD',qty:30,price:150,fees:1,date:d(420),account:'Main'},
+    {id:uid(),ts:2,side:'buy',symbol:'AAPL',assetClass:'equity',ccy:'USD',qty:20,price:185,fees:1,date:d(40),account:'Main'},
+    {id:uid(),ts:3,side:'buy',symbol:'VOO',assetClass:'etf',ccy:'USD',qty:15,price:400,fees:0,date:d(500),account:'Main'},
+    {id:uid(),ts:4,side:'buy',symbol:'BTC',assetClass:'crypto',ccy:'USD',qty:0.5,price:42000,fees:5,date:d(300),account:'Main'},
+    {id:uid(),ts:5,side:'buy',symbol:'NVDA',assetClass:'equity',ccy:'USD',qty:25,price:140,fees:1,date:d(20),account:'Main'},
+    {id:uid(),ts:6,side:'sell',symbol:'AAPL',assetClass:'equity',ccy:'USD',qty:10,price:230,fees:1,date:d(5),account:'Main'},
+  ];
+  // seed approximate prices so the cockpit is meaningful offline before refresh
+  State.prices={AAPL:{price:228,ccy:'USD',asOf:Date.now(),src:'seed'},VOO:{price:545,ccy:'USD',asOf:Date.now(),src:'seed'},
+    BTC:{price:64000,ccy:'USD',asOf:Date.now(),src:'seed'},NVDA:{price:118,ccy:'USD',asOf:Date.now(),src:'seed'}};
+  const synth=(start,n,drift,volat)=>{const a=[start];for(let i=1;i<n;i++){a.push(Math.max(1,a[i-1]*(1+drift+(Math.sin(i*1.3)*volat))));}return a;};
+  State.history={AAPL:synth(150,120,.0009,.012),VOO:synth(400,120,.0008,.006),BTC:synth(42000,120,.002,.03),NVDA:synth(140,120,-.001,.02)};
+  // seed macro + sentiment so the Phase-2b cards are meaningful offline (refresh replaces with live data)
+  State.macro={regime:'late-cycle',score:-0.35,src:'seed',asOf:Date.now(),
+    indicators:{yieldCurve:-0.35,fedFunds:4.33,fedFundsChg6m:0.5,inflationYoY:3.4,unemployment:4.1,unemploymentChg6m:0.3}};
+  State.sentiment={
+    AAPL:{score:0.33,label:'bullish',n:10,scored:6,src:'seed',asOf:Date.now()},
+    NVDA:{score:-0.40,label:'bearish',n:9,scored:5,src:'seed',asOf:Date.now()},
+    BTC:{score:0.10,label:'neutral',n:8,scored:4,src:'seed',asOf:Date.now()},
+    VOO:{score:0.05,label:'neutral',n:5,scored:2,src:'seed',asOf:Date.now()}};
+  // seed HMM regime model so the Phase-2c card is meaningful offline
+  State.regimeModel={
+    AAPL:{symbol:'AAPL',state:0,label:'bull',prob:0.82,trendAnn:24,persistenceDays:34,src:'hmm',states:[{meanAnn:24,volAnn:18,label:'bull'},{meanAnn:-30,volAnn:42,label:'bear'}]},
+    NVDA:{symbol:'NVDA',state:1,label:'bear',prob:0.74,trendAnn:-26,persistenceDays:12,src:'hmm',states:[{meanAnn:30,volAnn:34,label:'bull'},{meanAnn:-26,volAnn:52,label:'bear'}]},
+    BTC:{symbol:'BTC',state:1,label:'crisis',prob:0.90,trendAnn:-58,persistenceDays:8,src:'hmm',states:[{meanAnn:40,volAnn:48,label:'bull'},{meanAnn:-58,volAnn:74,label:'crisis'}]},
+    VOO:{symbol:'VOO',state:0,label:'chop',prob:0.61,trendAnn:5,persistenceDays:22,src:'hmm',states:[{meanAnn:6,volAnn:12,label:'chop'},{meanAnn:-12,volAnn:24,label:'bear'}]}};
+  State.targets={equity:50,etf:30,crypto:10,bond:10};
+  DB.save(State);renderAll();toast('Demo portfolio loaded');
+}
+
+/* ---------- boot --------------------------------------------------------- */
+function init(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+  $('#btnAddTxn').onclick=openTxn;$('#t-cancel').onclick=()=>$('#txnModal').classList.remove('show');$('#t-save').onclick=saveTxn;
+  $('#btnRefresh').onclick=refreshPrices;
+  $('#bt-run').onclick=runBacktest;
+  $('#bt-strat').onchange=syncBtLabels;
+  $('#btnSettings').onclick=openSettings;$('#s-cancel').onclick=()=>$('#setModal').classList.remove('show');$('#s-save').onclick=saveSettings;
+  $('#s-demo').onclick=()=>{loadDemo();$('#setModal').classList.remove('show');};
+  $('#s-wipe').onclick=()=>{if(confirm('Erase all data?')){State=DEFAULT_STATE();DB.save(State);$('#setModal').classList.remove('show');renderAll();toast('Erased');}};
+  [$('#txnModal'),$('#setModal')].forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove('show');});
+  window.addEventListener('online',updatePill);window.addEventListener('offline',updatePill);
+  if(!State.txns.length) loadDemo(); else renderAll();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+document.addEventListener('DOMContentLoaded',init);
+
+/* expose engines for console/testing & the Phase-2/3 layers */
+return {State:()=>State, Tax, Portfolio, Signals, Plan, Decide, Backtest, Providers, loadDemo};
+})();
+</script>
+</body>
+</html>
